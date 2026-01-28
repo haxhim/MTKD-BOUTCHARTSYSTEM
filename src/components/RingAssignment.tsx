@@ -466,9 +466,12 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                                                     </button>
                                                 </div>
                                                 <div className="min-h-[36px] sm:min-h-[40px] bg-gradient-to-r from-gray-50 to-transparent rounded-lg sm:rounded-xl p-1.5 sm:p-2 space-y-1 sm:space-y-1.5 border border-gray-100">
-                                                    {ring.priorityGroups[priority]?.map(catKey => (
+                                                    {ring.priorityGroups[priority]?.map((catKey, idx) => (
                                                         <div key={catKey} className="flex justify-between items-center text-xs sm:text-sm bg-white p-1.5 sm:p-2 rounded-lg border border-gray-100 group hover:border-blue-200 transition-colors">
-                                                            <span className="text-gray-700 truncate mr-2 font-medium" title={catKey}>{catKey}</span>
+                                                            <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                                                <span className="text-gray-400 font-mono text-[10px] sm:text-xs shrink-0 w-3">{idx + 1}.</span>
+                                                                <span className="text-gray-700 truncate font-medium" title={catKey}>{catKey}</span>
+                                                            </div>
                                                             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                                                 <span className="text-[9px] sm:text-[10px] text-gray-400 bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded-full">{getBoutCount(catKey)}b</span>
                                                                 <button

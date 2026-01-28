@@ -101,8 +101,11 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
             if (ringsData) {
                 const parsedRings = ringsData.map(r => ({
                     ...r,
-                    priorityGroups: typeof r.priority_groups === 'string' ? JSON.parse(r.priority_groups) : r.priority_groups
+                    priorityGroups: typeof r.priority_groups === 'string' ? JSON.parse(r.priority_groups) : r.priority_groups,
+                    orderIndex: r.order_index || 0
                 }));
+                // Sort by orderIndex
+                parsedRings.sort((a, b) => (a.orderIndex - b.orderIndex));
                 setRings(parsedRings as any);
             }
 
@@ -288,11 +291,12 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
             if (ringsToSave.length > 0) {
                 const { error: rError } = await supabase
                     .from('rings')
-                    .upsert(ringsToSave.map(r => ({
+                    .upsert(ringsToSave.map((r, index) => ({
                         id: r.id,
                         tournament_id: tournamentId,
                         name: r.name,
-                        priority_groups: r.priorityGroups // Explicitly map to snake_case column
+                        priority_groups: r.priorityGroups, // Explicitly map to snake_case column
+                        order_index: r.orderIndex ?? index // Save order
                     })), { onConflict: 'id' });
 
                 if (rError) {

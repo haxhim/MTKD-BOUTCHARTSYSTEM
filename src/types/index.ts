@@ -26,6 +26,7 @@ export interface Ring {
     priorityGroups: {
         [priority: number]: string[];
     };
+    orderIndex?: number;
 }
 
 export interface Match {
