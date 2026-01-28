@@ -16,6 +16,21 @@ import { RingMatchPage } from './pages/RingMatchPage';
 import { MasterBoutPage } from './pages/MasterBoutPage';
 import { JudgePage } from './pages/JudgePage';
 import { WinnersPage } from './pages/WinnersPage';
+import { SharePage } from './pages/SharePage';
+
+// New Layouts
+import { PublicLayout } from './pages/PublicLayout';
+import { PrivateLayout } from './pages/PrivateLayout';
+
+// Public Components
+import { LiveRingBoard } from './components/public/LiveRingBoard';
+import { PublicWinnersView } from './components/public/PublicWinnersView';
+import { PublicBracketView } from './components/public/PublicBracketView';
+import { PublicMasterList } from './components/public/PublicMasterList';
+
+// Private Components
+import { PrivateJudgeWrapper } from './components/public/PrivateJudgeWrapper';
+import { MedalManager } from './components/public/MedalManager';
 
 function App() {
   return (
@@ -26,7 +41,24 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected Routes */}
+            {/* --- PUBLIC SHARE ROUTES --- */}
+            <Route path="/share/:tournamentId/public" element={<PublicLayout />}>
+              <Route path="live" element={<LiveRingBoard />} />
+              <Route path="results" element={<PublicWinnersView />} />
+              <Route path="brackets" element={<PublicBracketView />} />
+              <Route path="participants" element={<PublicMasterList />} />
+              <Route index element={<Navigate to="live" replace />} />
+            </Route>
+
+            {/* --- PRIVATE SHARE ROUTES (PIN Protected) --- */}
+            <Route path="/share/:tournamentId/private" element={<PrivateLayout />}>
+              <Route path="judge" element={<PrivateJudgeWrapper />} />
+              <Route path="medals" element={<MedalManager />} />
+              <Route index element={<Navigate to="judge" replace />} />
+            </Route>
+
+
+            {/* Protected Admin Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Navigate to="/lobby" replace />} />
               <Route path="/lobby" element={<LobbyPage />} />
@@ -42,6 +74,7 @@ function App() {
                   <Route path="judge" element={<JudgePage />} />
                   <Route path="judge/:ringId" element={<JudgePage />} />
                   <Route path="winners" element={<WinnersPage />} />
+                  <Route path="share" element={<SharePage />} />
 
                   {/* Default redirect to overview */}
                   <Route index element={<Navigate to="overview" replace />} />

@@ -64,10 +64,11 @@ const RingCard: React.FC<{ ring: Ring, stats: { categories: number, bouts: numbe
     >
         <div className="flex justify-between items-start mb-4">
             <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{ring.name}</h3>
-            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${ring.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {ring.isActive ? 'Active' : 'Inactive'}
+            <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-blue-100 text-blue-700">
+                {ring.bout_mode?.includes('table') ? 'Table' : 'Tree'}
             </span>
         </div>
+
 
         <div className="space-y-2 text-sm text-gray-600">
             <div className="flex justify-between">
@@ -122,18 +123,22 @@ export const MatchControl: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         const ring = rings.find(r => r.id === selectedRingId);
         if (!ring) return [];
 
+        // Use ring's bout_mode as source of truth
+        const isTableMode = ring.bout_mode?.includes('table') || false;
+
         const relevantGroups: { title: string, matches: Match[], isTable: boolean }[] = [];
         matches.forEach((catMatches, key) => {
             if (catMatches.length > 0 && catMatches[0].ring === selectedRingId) {
                 relevantGroups.push({
                     title: key,
                     matches: catMatches,
-                    isTable: catMatches[0].is_table_mode || false
+                    isTable: isTableMode
                 });
             }
         });
         return relevantGroups.sort((a, b) => a.title.localeCompare(b.title));
     }, [matches, selectedRingId, rings]);
+
 
     const handleRingClick = (id: string) => {
         setSelectedRingId(id);
@@ -173,7 +178,7 @@ export const MatchControl: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     return (
         <div className="flex flex-col h-full bg-gray-50 animate-fadeIn">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-0 z-10 shadow-sm">
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-0 z-10 shadow-sm no-print">
                 <div className="flex items-center gap-4">
                     <button onClick={() => setViewMode('overview')} className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-medium transition-colors">
                         <ChevronLeft size={20} /> Back to Rings

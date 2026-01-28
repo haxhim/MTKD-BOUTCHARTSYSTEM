@@ -191,12 +191,22 @@ export const BracketView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     const categoryGroups = useMemo(() => {
         const groups: { key: string, matches: Match[], isTable: boolean }[] = [];
+
+        // Helper to determine mode from ring
+        const getModeFromRing = (ringId: string | undefined): boolean => {
+            if (!ringId) return false;
+            const ring = rings.find(r => r.id === ringId);
+            return ring?.bout_mode?.includes('table') || false;
+        };
+
         const baseMatches = matches.get(selectedCategory);
         if (baseMatches && baseMatches.length > 0) {
+            // Use ring's bout_mode as source of truth
+            const isTable = getModeFromRing(baseMatches[0].ring);
             groups.push({
                 key: selectedCategory,
                 matches: baseMatches,
-                isTable: baseMatches[0].is_table_mode || false
+                isTable
             });
         }
         const splitKeys: string[] = [];
@@ -209,15 +219,17 @@ export const BracketView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         splitKeys.forEach(k => {
             const m = matches.get(k);
             if (m && m.length > 0) {
+                const isTable = getModeFromRing(m[0].ring);
                 groups.push({
                     key: k,
                     matches: m,
-                    isTable: m[0].is_table_mode || false
+                    isTable
                 });
             }
         });
         return groups;
-    }, [matches, selectedCategory]);
+    }, [matches, selectedCategory, rings]);
+
 
     const currentParticipants = participants.filter(p => p.category_key === selectedCategory);
 

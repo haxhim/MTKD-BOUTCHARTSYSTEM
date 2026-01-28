@@ -387,164 +387,227 @@ input:focus, select:focus, button:focus-visible {
   transform: translateX(-20px);
 }
 
-/* Print Styles - One category per page */
+/* ============================================
+   Print Styles - Clean and Comprehensive
+   ============================================ */
+
+/* Utility class to hide elements in print */
+.print\:hidden {
+  /* This class will hide elements when printing */
+}
+
+/* Utility class to show only in print */
+.print\:only {
+  display: none !important;
+}
+
 @media print {
-  /* Page setup - landscape for brackets */
+  /* Page setup */
   @page {
-    size: A4 landscape;
-    margin: 10mm;
+    size: A4;
+    margin: 15mm 10mm;
   }
 
-  /* Hide everything first */
-  body * {
-    visibility: hidden;
+  @page :first {
+    margin-top: 10mm;
   }
 
-  body {
+  /* Reset background and ensure colors print */
+  html, body {
     background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    counter-reset: page;
+    color-adjust: exact !important;
   }
 
-  /* Hide non-print elements */
-  .no-print,
-  header,
-  nav,
+  /* === HIDE ALL UI ELEMENTS === */
+  
+  /* Hide sidebar completely */
   aside,
+  .sidebar,
+  [class*="sidebar"],
+  nav:not(.print-nav) {
+    display: none !important;
+    width: 0 !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide header/footer navigation */
+  header:not(.print-header),
   footer,
-  button,
-  select,
-  .sidebar {
+  .sticky {
     display: none !important;
   }
 
-  /* === BRACKET VIEW PRINT === */
-  .print-area,
-  .print-area * {
-    visibility: visible !important;
+  /* Hide all interactive elements */
+  button,
+  select,
+  input:not([type="hidden"]),
+  .no-print,
+  .print\:hidden,
+  [class*="hover:"],
+  .animate-ping,
+  .animate-pulse {
+    display: none !important;
   }
 
-  .print-area {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+  /* Hide toast notifications */
+  [class*="toast"],
+  [class*="Toast"] {
+    display: none !important;
+  }
+
+  /* Hide modals */
+  [class*="modal"],
+  [class*="Modal"],
+  .fixed.inset-0 {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print\:only {
+    display: block !important;
+  }
+
+  /* === SHOW MAIN CONTENT FULL WIDTH === */
+  
+  /* Make main content full width */
+  main,
+  .main-content,
+  [class*="ml-64"],
+  [class*="ml-["] {
+    margin-left: 0 !important;
     width: 100% !important;
-    height: auto !important;
-    padding: 20px !important;
-    margin: 0 !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Container adjustments */
+  .container,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* === TABLE PRINT STYLES === */
+  
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10pt !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 6px 8px !important;
+    text-align: left !important;
     background: white !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
   }
 
-  .bracket-wrapper {
-    width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-  }
-
-  .bracket-wrapper h1 {
-    font-size: 18pt !important;
+  thead th {
+    background: #f3f4f6 !important;
     font-weight: bold !important;
-    margin-bottom: 15px !important;
-    text-align: center !important;
-    color: black !important;
   }
 
-  .bracket-tree {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
+  /* Alternating row colors */
+  tbody tr:nth-child(even) {
+    background: #fafafa !important;
   }
 
-  /* === RING MATCH VIEW - MULTI-PAGE PRINT === */
-  .print-page {
+  /* === CARD/BRACKET PRINT STYLES === */
+  
+  .bg-white,
+  .card,
+  .rounded-xl,
+  .rounded-2xl {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 4px !important;
+  }
+
+  /* Page breaks */
+  .print-page-break {
     page-break-after: always !important;
     break-after: page !important;
-    width: 100% !important;
-    min-height: 90vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    padding: 15mm 10mm 20mm !important;
-    visibility: visible !important;
-    position: relative !important;
-    counter-increment: page;
   }
 
-  .print-page:last-child {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  .print-page * {
-    visibility: visible !important;
-  }
-
-  .print-page::after {
-    content: "Page " counter(page);
-    position: absolute;
-    right: 10mm;
-    bottom: 8mm;
-    font-size: 10pt;
-    color: #666;
-    visibility: visible !important;
-  }
-
-  .print-bracket {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    flex: 1 !important;
-    width: 100% !important;
-  }
-
-  /* Match card print styles */
-  .bracket-match {
+  .print-avoid-break {
+    page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* === BRACKET SPECIFIC === */
+  
+  .bracket-match {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
-    background: white !important;
+    break-inside: avoid !important;
   }
 
   .bracket-node {
     break-inside: avoid !important;
   }
 
-  /* SVG connector lines for print */
-  .connector-lines {
-    display: block !important;
-  }
-
   .connector-lines line {
-    stroke: #555 !important;
+    stroke: #333 !important;
     stroke-width: 1.5px !important;
   }
 
-  /* Ensure colors print correctly */
-  .bracket-player .bg-red-500 {
-    background-color: #ef4444 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  /* === TEXT ADJUSTMENTS === */
+  
+  h1 { font-size: 16pt !important; }
+  h2 { font-size: 14pt !important; }
+  h3 { font-size: 12pt !important; }
+  
+  p, span, div {
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
   }
 
-  .bracket-player .bg-blue-500 {
-    background-color: #3b82f6 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  /* Ensure links are visible text */
+  a {
+    color: black !important;
+    text-decoration: none !important;
   }
 
-  /* Hide the interactive carousel parts */
-  .scrollbar-hide {
-    display: none !important;
+  /* === GRADIENTS TO SOLID === */
+  
+  [class*="bg-gradient"] {
+    background: #f3f4f6 !important;
+  }
+
+  /* === SPECIFIC COMPONENT FIXES === */
+  
+  /* Winners view */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    margin-bottom: 10px !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ring cards in grid - stack vertically */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    display: block !important;
+  }
+
+  /* Hide backgrounds */
+  .bg-gray-50,
+  .bg-gray-100 {
+    background: white !important;
+  }
+
+  /* Trophy/medal emoji visibility */
+  .text-amber-400,
+  .text-amber-500 {
+    color: #000 !important;
   }
 }
+

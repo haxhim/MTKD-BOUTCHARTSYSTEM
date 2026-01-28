@@ -426,9 +426,14 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5 min-h-[30px]">
-                                                {cats.map(cat => (
+                                                {cats.map((cat, catIndex) => (
                                                     <div key={cat} className="flex justify-between items-center bg-white px-2 py-1.5 rounded border border-gray-100 shadow-sm text-xs sm:text-sm group">
-                                                        <span className="truncate max-w-[140px] text-gray-700">{cat}</span>
+                                                        <span className="truncate max-w-[160px] text-gray-700 flex items-center gap-2">
+                                                            <span className="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-[10px] min-w-[20px] text-center">
+                                                                {catIndex + 1}
+                                                            </span>
+                                                            {cat}
+                                                        </span>
                                                         <button
                                                             onClick={() => removeCategory(ring.id, Number(priority), cat)}
                                                             className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -443,6 +448,7 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                                                     </div>
                                                 )}
                                             </div>
+
                                         </div>
                                     ))}
                                     <button

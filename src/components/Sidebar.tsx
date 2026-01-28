@@ -34,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, onExit, isOpen = tru
         { path: `${baseUrl}/matches`, label: 'Match Control', icon: FileSpreadsheet },
         { path: `${baseUrl}/judge`, label: 'Judge Interface', icon: Gavel },
         { path: `${baseUrl}/winners`, label: 'Results & Podium', icon: Trophy },
+        { path: `${baseUrl}/share`, label: 'Share Center', icon: Network }, // Network icon reused or use Share icon if available
     ] as const;
 
     return (
@@ -50,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, onExit, isOpen = tru
             <aside className={`
                 fixed lg:static inset-y-0 left-0 z-50
                 w-64 bg-white border-r border-gray-100 flex flex-col min-h-screen h-screen shadow-xl lg:shadow-sm
-                transform transition-transform duration-300 ease-out
+                transform transition-transform duration-300 ease-out no-print
                 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
                 {/* Brand Header */}

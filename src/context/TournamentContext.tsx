@@ -296,8 +296,10 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                         tournament_id: tournamentId,
                         name: r.name,
                         priority_groups: r.priorityGroups, // Explicitly map to snake_case column
-                        order_index: r.orderIndex ?? index // Save order
+                        order_index: r.orderIndex ?? index, // Save order
+                        bout_mode: r.bout_mode || 'tree_pro' // Save bout mode
                     })), { onConflict: 'id' });
+
 
                 if (rError) {
                     console.error("Error saving rings:", rError);

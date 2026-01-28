@@ -249,18 +249,26 @@ export const assignBoutNumbers = (
         priorities.forEach(priority => {
             const categories = ring.priorityGroups[priority];
             const expandedCategories: string[] = [];
+
+            // Preserve the order from priority groups, only sort splits (A, B, C...) within each root category
             categories.forEach(rootCat => {
                 if (categoryMatchesMap.has(rootCat)) {
                     expandedCategories.push(rootCat);
                 } else {
+                    // Find all split groups for this root category and sort them
+                    const splits: string[] = [];
                     for (const key of categoryMatchesMap.keys()) {
                         if (key.startsWith(rootCat + '_')) {
-                            expandedCategories.push(key);
+                            splits.push(key);
                         }
                     }
+                    // Sort splits alphabetically (A, B, C order)
+                    splits.sort();
+                    expandedCategories.push(...splits);
                 }
             });
-            expandedCategories.sort();
+            // DO NOT sort expandedCategories - preserve user-defined order from priority groups!
+
 
             const categoryIndices: Record<string, number> = {};
             const categoryMatches: Record<string, Match[]> = {};
@@ -293,15 +301,11 @@ export const assignBoutNumbers = (
 
                         if (!isRedBye && !isBlueBye) {
                             const ringLetter = ring.name.replace('RING', '').replace('Ring', '').trim();
-
-                            // For Table Mode, we DO NOT assign bout numbers as per requirements
-                            if (match.is_table_mode) {
-                                match.bout_number = '';
-                            } else {
-                                match.bout_number = `${ringLetter}${boutCounter.toString().padStart(2, '0')}`;
-                                boutCounter++;
-                            }
+                            // Both tree and table modes get bout numbers for judge interface
+                            match.bout_number = `${ringLetter}${boutCounter.toString().padStart(2, '0')}`;
+                            boutCounter++;
                         }
+
                         index++;
                     }
                     categoryIndices[catKey] = index;
