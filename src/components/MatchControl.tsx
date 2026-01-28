@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTournament } from '../context/TournamentContext';
-import { ChevronLeft, Filter, Calendar } from 'lucide-react';
+import { ChevronLeft, Calendar } from 'lucide-react';
 import { BracketNode } from './BracketNode';
 import type { Match, Ring } from '../types';
 
@@ -106,7 +106,7 @@ export const MatchControl: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             categoryCount = categories.size;
 
             // Count bouts
-            matches.forEach((list, key) => {
+            matches.forEach((list) => {
                 if (list.length > 0 && list[0].ring === ring.id) {
                     boutCount += list.length;
                 }

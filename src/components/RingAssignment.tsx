@@ -6,7 +6,7 @@ import { generateId } from '../utils/uuid';
 import { assignBoutNumbers } from '../utils/matchGenerator';
 import { parseCSV } from '../utils/csvParser';
 import { generateCategoryTally } from '../utils/tallyGenerator';
-import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -190,19 +190,7 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
         handleRingUpdate(updatedRings);
     };
 
-    const assignCategory = (ringId: string, priority: number, categoryKey: string) => {
-        const updatedRings = rings.map(r => {
-            if (r.id === ringId) {
-                const currentGroup = r.priorityGroups[priority] || [];
-                return {
-                    ...r,
-                    priorityGroups: { ...r.priorityGroups, [priority]: [...currentGroup, categoryKey] }
-                };
-            }
-            return r;
-        });
-        handleRingUpdate(updatedRings);
-    };
+
 
     const removeCategory = (ringId: string, priority: number, categoryKey: string) => {
         const updatedRings = rings.map(r => {

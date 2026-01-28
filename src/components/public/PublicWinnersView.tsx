@@ -98,7 +98,7 @@ export const PublicWinnersView: React.FC = () => {
 
             {/* Results Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {podiums.map((podium, index) => (
+                {podiums.map((podium) => (
                     <div
                         key={podium.category}
                         className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden break-inside-avoid"

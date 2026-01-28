@@ -4,9 +4,9 @@ import { useTournament } from '../context/TournamentContext';
 import { seedParticipants } from '../utils/seedingAlgorithm';
 import { generateMatches, assignBoutNumbers } from '../utils/matchGenerator';
 import type { Match, Participant } from '../types';
-import type { GenerationOptions } from '../utils/matchGenerator';
+
 import { BracketNode } from './BracketNode';
-import { ChevronLeft, Printer, ZoomIn, ZoomOut, RotateCcw, Maximize2, Settings, RefreshCw, Play } from 'lucide-react';
+import { ChevronLeft, Printer, Settings, RefreshCw, Play } from 'lucide-react';
 
 const useResponsiveScale = () => {
     const [scale, setScale] = useState(1);
@@ -75,9 +75,8 @@ const TableView = ({ matches }: { matches: Match[] }) => {
 export const BracketView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const { participants, rings, matches, setMatches, categorySummaries, saveData } = useTournament();
     const [selectedCategory, setSelectedCategory] = useState<string>(categorySummaries[0]?.category_key || '');
-    const [manualScale, setManualScale] = useState<number | null>(null);
     const autoScale = useResponsiveScale();
-    const scale = manualScale ?? autoScale;
+    const scale = autoScale;
     const printRef = useRef<HTMLDivElement>(null);
 
     // Generation Settings

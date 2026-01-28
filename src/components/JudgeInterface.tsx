@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import type { Match, Participant } from '../types';
 import { advanceWinner } from '../utils/tournamentLogic';
-import { ChevronLeft, ChevronRight, X, Check, Home, AlertTriangle } from 'lucide-react';
-import { generateId } from '../utils/uuid'; // Needed if we generate rounds, though we might skip that for now
+import { ChevronLeft, Check, Home, AlertTriangle } from 'lucide-react';
+
 
 interface RingQueue {
     ringName: string;

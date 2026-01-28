@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ChevronRight } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 interface PinEntryProps {
     onSuccess: () => void;
@@ -52,8 +52,8 @@ export const PinEntry: React.FC<PinEntryProps> = ({ onSuccess, correctPin = '123
                         <div
                             key={i}
                             className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length
-                                    ? 'bg-blue-600 scale-110'
-                                    : 'bg-gray-200'
+                                ? 'bg-blue-600 scale-110'
+                                : 'bg-gray-200'
                                 } ${error ? 'bg-red-400 animate-shake' : ''}`}
                         />
                     ))}

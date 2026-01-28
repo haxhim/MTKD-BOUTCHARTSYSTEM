@@ -1,11 +1,10 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { generatePlayerBoutData } from '../utils/reportGenerator';
-import { seedParticipants } from '../utils/seedingAlgorithm';
-import { generateMatches, assignBoutNumbers } from '../utils/matchGenerator';
-import type { Match, Participant } from '../types';
-import { ChevronLeft, UserPlus, Search, Filter } from 'lucide-react';
+
+
+import { ChevronLeft, Search } from 'lucide-react';
 
 import { AddPlayerModal } from './AddPlayerModal';
 
@@ -14,7 +13,7 @@ interface MasterBoutListProps {
 }
 
 export const MasterBoutList: React.FC<MasterBoutListProps> = ({ onBack }) => {
-    const { participants, matches, setMatches, rings } = useTournament();
+    const { participants, matches, rings } = useTournament();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClub, setSelectedClub] = useState<string>('All');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -69,14 +68,13 @@ export const MasterBoutList: React.FC<MasterBoutListProps> = ({ onBack }) => {
             // Actually, we can just look up the match ring directly if report data has match IDs?
             // Report Generator output has 'bouts' strings.
             // We might need to enhance 'generatePlayerBoutData' or just do a lookup here.
-            if (list.length > 0) categoryRingMap.set(key, list[0].ring);
+            if (list.length > 0) categoryRingMap.set(key, list[0].ring || 'Unassigned');
         });
 
         return baseData.map(item => {
             // Find participant to get category
             const p = participants.find(part => part.id === item.id);
             const category = p?.category_key || 'Unknown';
-            const ringId = categoryRingMap.get(category) || 'Unassigned'; // This lookup might be flaky with splits.
 
             // Better Ring Lookup: Checks all match lists
             let actualRing = 'Unassigned';

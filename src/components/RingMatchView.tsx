@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, RotateCcw, Maximiz
 // Hook to get responsive scale based on window width
 const useResponsiveScale = () => {
     const [scale, setScale] = useState(1);
-    
+
     useEffect(() => {
         const updateScale = () => {
             const width = window.innerWidth;
@@ -21,12 +21,12 @@ const useResponsiveScale = () => {
                 setScale(0.9);
             }
         };
-        
+
         updateScale();
         window.addEventListener('resize', updateScale);
         return () => window.removeEventListener('resize', updateScale);
     }, []);
-    
+
     return scale;
 };
 
@@ -62,8 +62,9 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             }
 
             const seeded = seedParticipants(list);
-            const catMatches = generateMatches(seeded, catKey, ringId);
-            newMatches.set(catKey, catMatches);
+            const matchGroups = generateMatches(seeded, catKey, ringId);
+            const flatMatches = matchGroups.flatMap(g => g.matches);
+            newMatches.set(catKey, flatMatches);
         });
 
         assignBoutNumbers(rings, newMatches);
@@ -152,8 +153,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="h-full flex flex-col p-3 sm:p-4 lg:p-6 overflow-hidden bg-gradient-to-br from-gray-50 to-slate-50 min-h-screen">
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6 shrink-0 no-print">
-                <button 
-                    onClick={onBack} 
+                <button
+                    onClick={onBack}
                     className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-medium transition-colors group touch-target"
                 >
                     <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -205,8 +206,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             <option key={r.id} value={r.id}>{r.name}</option>
                         ))}
                     </select>
-                    <button 
-                        onClick={() => window.print()} 
+                    <button
+                        onClick={() => window.print()}
                         className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-200 font-medium flex items-center gap-2 touch-target"
                     >
                         <Printer size={18} />
@@ -238,11 +239,10 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 <button
                                     onClick={goToPrevious}
                                     disabled={currentCategoryIndex === 0}
-                                    className={`p-2.5 rounded-xl transition-all duration-200 ${
-                                        currentCategoryIndex === 0 
-                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                                    className={`p-2.5 rounded-xl transition-all duration-200 ${currentCategoryIndex === 0
+                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                             : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
-                                    }`}
+                                        }`}
                                 >
                                     <ChevronLeft size={20} />
                                 </button>
@@ -253,11 +253,10 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                         <button
                                             key={cat!.key}
                                             onClick={() => goToCategory(index)}
-                                            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                                                index === currentCategoryIndex
+                                            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 ${index === currentCategoryIndex
                                                     ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200 scale-105'
                                                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                            }`}
+                                                }`}
                                         >
                                             {cat!.key}
                                         </button>
@@ -268,11 +267,10 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                 <button
                                     onClick={goToNext}
                                     disabled={currentCategoryIndex === ringCategories.length - 1}
-                                    className={`p-2.5 rounded-xl transition-all duration-200 ${
-                                        currentCategoryIndex === ringCategories.length - 1 
-                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                                    className={`p-2.5 rounded-xl transition-all duration-200 ${currentCategoryIndex === ringCategories.length - 1
+                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                             : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
-                                    }`}
+                                        }`}
                                 >
                                     <ChevronRight size={20} />
                                 </button>
@@ -286,13 +284,12 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                         onClick={() => goToCategory(index)}
                                         className="p-0.5"
                                     >
-                                        <Circle 
-                                            size={index === currentCategoryIndex ? 10 : 8} 
-                                            className={`transition-all duration-200 ${
-                                                index === currentCategoryIndex 
-                                                    ? 'fill-blue-500 text-blue-500' 
+                                        <Circle
+                                            size={index === currentCategoryIndex ? 10 : 8}
+                                            className={`transition-all duration-200 ${index === currentCategoryIndex
+                                                    ? 'fill-blue-500 text-blue-500'
                                                     : 'fill-gray-300 text-gray-300 hover:fill-gray-400 hover:text-gray-400'
-                                            }`}
+                                                }`}
                                         />
                                     </button>
                                 ))}
@@ -301,10 +298,9 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                         {/* Bracket Display Area */}
                         <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-                            <div 
-                                className={`bracket-wrapper transition-all duration-300 ${
-                                    isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
-                                }`}
+                            <div
+                                className={`bracket-wrapper transition-all duration-300 ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
+                                    }`}
                             >
                                 {currentCategory && (
                                     <>

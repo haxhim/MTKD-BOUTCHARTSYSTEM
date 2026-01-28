@@ -30,7 +30,8 @@ const runTest = () => {
     const seeded = seedParticipants(participants);
     console.log('Seeded Order:', seeded.map(p => (typeof p === 'string' ? p : `${p.name} (${p.club})`)).join(', '));
 
-    const matches = generateMatches(seeded, 'CAT M', 'RING A');
+    const matchGroups = generateMatches(seeded, 'CAT M', 'RING A');
+    const matches = matchGroups.flatMap(g => g.matches);
     const round1 = matches.filter(m => m.round.includes('Quarter') || m.round === 'Round 1'); // 8 players -> Quarter Final is Round 1
 
     console.log('Round 1 Matches:');

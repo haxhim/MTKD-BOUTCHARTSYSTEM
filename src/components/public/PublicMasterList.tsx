@@ -3,19 +3,12 @@ import { useTournament } from '../../context/TournamentContext';
 import { Search, Filter, Printer, List } from 'lucide-react';
 
 export const PublicMasterList: React.FC = () => {
-    const { matches, rings, participants } = useTournament();
+    const { matches, rings } = useTournament();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRingId, setSelectedRingId] = useState<string>('all');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-    // Get unique clubs for reference
-    const uniqueClubs = useMemo(() => {
-        const clubs = new Set<string>();
-        participants.forEach(p => {
-            if (p.club) clubs.add(p.club);
-        });
-        return Array.from(clubs).sort();
-    }, [participants]);
+
 
     // Get unique categories
     const uniqueCategories = useMemo(() => {
