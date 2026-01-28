@@ -1,0 +1,23 @@
+src/components/CSVUploader.tsx(2,35): error TS6133: 'CheckCircle' is declared but its value is never read.
+src/components/Dashboard.tsx(11,24): error TS2305: Module '"./Sidebar"' has no exported member 'ViewState'.
+src/components/Dashboard.tsx(228,17): error TS2322: Type '{ currentView: ViewState; onNavigate: Dispatch<any>; onLogout: () => Promise<void>; onExit: () => void; isOpen: boolean; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes & SidebarProps'.
+  Property 'currentView' does not exist on type 'IntrinsicAttributes & SidebarProps'.
+src/components/ErrorBoundary.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/components/ErrorBoundary.tsx(1,28): error TS1484: 'ErrorInfo' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/ErrorBoundary.tsx(1,39): error TS1484: 'ReactNode' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+src/components/MasterBoutList.tsx(16,55): error TS6133: 'categorySummaries' is declared but its value is never read.
+src/components/RingAssignment.tsx(24,11): error TS6133: 'updateRingsAndMatches' is declared but its value is never read.
+src/components/RingAssignment.tsx(31,15): error TS6133: 'matchesRef' is declared but its value is never read.
+src/components/WinnersView.tsx(3,15): error TS6196: 'Match' is declared but never used.
+src/context/TournamentContext.tsx(150,37): error TS2322: Type 'Participant | "BYE" | null | undefined' is not assignable to type 'Participant | "BYE" | null'.
+  Type 'undefined' is not assignable to type 'Participant | "BYE" | null'.
+src/context/TournamentContext.tsx(151,37): error TS2322: Type 'Participant | null | undefined' is not assignable to type 'Participant | "BYE" | null'.
+  Type 'undefined' is not assignable to type 'Participant | "BYE" | null'.
+src/context/TournamentContext.tsx(424,62): error TS2322: Type 'undefined' is not assignable to type 'string'.
+src/context/TournamentContext.tsx(441,37): error TS2345: Argument of type '{ ring: undefined; id: string; bout_number: string; red: Participant | "BYE" | null; blue: Participant | "BYE" | null; round: string; winner?: Participant | "BYE" | undefined; nextMatchId?: string | undefined; leftChildId?: string | undefined; rightChildId?: string | undefined; }[]' is not assignable to parameter of type 'Match[]'.
+  Type '{ ring: undefined; id: string; bout_number: string; red: Participant | "BYE" | null; blue: Participant | "BYE" | null; round: string; winner?: Participant | "BYE"; nextMatchId?: string; leftChildId?: string; rightChildId?: string; }' is not assignable to type 'Match'.
+    Types of property 'ring' are incompatible.
+      Type 'undefined' is not assignable to type 'string'.
+src/pages/Layout.tsx(10,49): error TS6133: 'exitTournament' is declared but its value is never read.
+src/utils/matchGenerator.ts(98,19): error TS6133: 'ring' is declared but its value is never read.
+src/utils/matchGenerator.ts(99,13): error TS6133: 'boutCounter' is declared but its value is never read.
