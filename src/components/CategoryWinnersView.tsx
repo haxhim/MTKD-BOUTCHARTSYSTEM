@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { usePodiumResults } from '../hooks/usePodiumResults';
-import { ChevronLeft, Download, Filter, Medal, Trophy } from 'lucide-react';
+import { ChevronLeft, Download, Filter, Medal } from 'lucide-react';
 import { useTournament } from '../context/TournamentContext';
 
 export const CategoryWinnersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
@@ -119,8 +119,8 @@ export const CategoryWinnersView: React.FC<{ onBack: () => void }> = ({ onBack }
                         {idx === 0 && <div className="absolute top-0 right-0 p-2 bg-amber-100 text-amber-600 rounded-bl-xl text-xs font-bold">#1 Champion</div>}
                         <div className="flex items-center gap-3 mb-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-md ${idx === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600' :
-                                    idx === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500' :
-                                        'bg-gradient-to-br from-orange-300 to-orange-500'
+                                idx === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-500' :
+                                    'bg-gradient-to-br from-orange-300 to-orange-500'
                                 }`}>
                                 {idx + 1}
                             </div>
@@ -156,8 +156,8 @@ export const CategoryWinnersView: React.FC<{ onBack: () => void }> = ({ onBack }
                             key={r.id}
                             onClick={() => toggleRing(r.name)}
                             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${selectedRings.includes(r.name)
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                                 }`}
                         >
                             {r.name}

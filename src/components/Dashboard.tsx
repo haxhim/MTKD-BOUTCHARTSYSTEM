@@ -14,8 +14,11 @@ import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
 import { Search, Save, UserPlus, Play, Menu, RotateCcw, Loader2 } from 'lucide-react';
 
+import { SharePage } from '../pages/SharePage';
+import { CategoryWinnersView } from './CategoryWinnersView';
+
 // Define ViewState locally since it was removed from Sidebar
-export type ViewState = 'dashboard' | 'rings' | 'brackets' | 'ring_matches' | 'master_list' | 'judge' | 'winners';
+export type ViewState = 'dashboard' | 'rings' | 'brackets' | 'ring_matches' | 'master_list' | 'judge' | 'winners' | 'share' | 'medals';
 
 export const Dashboard: React.FC = () => {
     const {
