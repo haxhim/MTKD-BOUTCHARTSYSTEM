@@ -13,6 +13,7 @@ import {
     ArrowLeftRight,
     X
 } from 'lucide-react';
+import mtkdLogo from '../assets/mtkd-logo.webp';
 
 interface SidebarProps {
     onLogout: () => void;
@@ -59,8 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, onExit, isOpen = tru
                         className="flex items-center gap-2 lg:gap-3 flex-1 text-left hover:bg-gray-50 rounded-xl -ml-1 p-2 transition-all group"
                         title="Switch Tournament"
                     >
-                        <div className="w-9 lg:w-10 h-9 lg:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center font-bold text-base lg:text-lg text-white shadow-lg shadow-blue-200 group-hover:shadow-xl group-hover:scale-105 transition-all">
-                            M
+                        <div className="w-10 h-10 flex items-center justify-center">
+                            <img src={mtkdLogo} alt="MTKD Logo" className="w-full h-full object-contain" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <h1 className="font-bold text-gray-800 text-sm lg:text-base tracking-tight">MTKD Manager</h1>

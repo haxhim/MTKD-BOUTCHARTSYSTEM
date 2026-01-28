@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import mtkdLogo from '../assets/mtkd-logo.webp';
 
 export const Login: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -48,8 +49,8 @@ export const Login: React.FC = () => {
             <div className="relative bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/50 p-8 max-w-sm w-full border border-white/50">
                 {/* Logo/Brand Section */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-200 mb-4">
-                        <span className="text-2xl font-bold text-white">M</span>
+                    <div className="inline-flex items-center justify-center w-24 h-24 mb-4">
+                        <img src={mtkdLogo} alt="MTKD Logo" className="w-full h-full object-contain drop-shadow-lg" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-800">Welcome Back</h1>
                     <p className="text-gray-500 mt-1">MTKD Tournament Manager</p>
