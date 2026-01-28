@@ -3,11 +3,51 @@ import { useTournament } from '../context/TournamentContext';
 import type { Ring } from '../types';
 import { generateId } from '../utils/uuid';
 import { assignBoutNumbers } from '../utils/matchGenerator';
-import { ChevronLeft, Plus, Trash2, Layers, Pencil } from 'lucide-react';
+import { parseCSV } from '../utils/csvParser';
+import { generateCategoryTally } from '../utils/tallyGenerator';
+import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload } from 'lucide-react';
 
 export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [newRingName, setNewRingName] = useState('');
     const [editingRingId, setEditingRingId] = useState<string | null>(null);
+    const [genderFilter, setGenderFilter] = useState<'All' | 'Male' | 'Female'>('All');
+    const [isImporting, setIsImporting] = useState(false);
+
+    // We need matches and setMatches from useTournament
+    const { categorySummaries, rings, setRings, matches, setMatches, saveData, deleteRing, participants, setParticipants, setCategorySummaries } = useTournament();
+
+    const handleImport = async (file: File) => {
+        if (!file) return;
+        setIsImporting(true);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const content = e.target?.result as string;
+            try {
+                const newParticipants = parseCSV(content);
+                if (newParticipants.length === 0) {
+                    alert('No valid participants found in CSV.');
+                    setIsImporting(false);
+                    return;
+                }
+
+                const mergedParticipants = [...participants, ...newParticipants];
+                setParticipants(mergedParticipants);
+
+                const newSummaries = generateCategoryTally(mergedParticipants);
+                setCategorySummaries(newSummaries);
+
+                // Persist immediately
+                await saveData(mergedParticipants);
+                alert(`Successfully imported ${newParticipants.length} participants.`);
+            } catch (err) {
+                console.error(err);
+                alert('Failed to parse CSV.');
+            } finally {
+                setIsImporting(false);
+            }
+        };
+        reader.readAsText(file);
+    };
 
     // Helper to get unassigned categories
     const getUnassignedCategories = () => {
@@ -17,11 +57,30 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 cats.forEach(c => assigned.add(c));
             });
         });
-        return categorySummaries.filter(c => !assigned.has(c.category_key));
-    };
 
-    // We need matches and setMatches from useTournament
-    const { categorySummaries, rings, setRings, matches, setMatches, saveData, deleteRing } = useTournament();
+        return categorySummaries.filter(c => {
+            if (assigned.has(c.category_key)) return false;
+
+            // Apply Gender Filter
+            if (genderFilter === 'All') return true;
+            // Assuming category key format "Category Gender" or checks age group helper if needed.
+            // But we can check raw category string if standard: "WeightClass MALE"
+            // Or assume the summary doesn't retain gender explicitly, but `category_key` usually ends with "Male" or "Female" or "M" / "F"?
+            // Let's check `generateCategoryTally`. It groups by `category_key`.
+            // In `parseCSV`, `category_key = ${category} ${gender}`.
+            // So checking if key contains gender string is safest heuristic.
+
+            // Heuristic case-insensitive check
+            const keyLower = c.category_key.toLowerCase();
+            if (genderFilter === 'Male') return keyLower.includes('male') && !keyLower.includes('female'); // "Male" but checking "Female" just in case "Female" contains "male" substring? No, "female" has "male", so include 'male' is risky for 'female'.
+            // Actually "Female" contains "male".
+            // So:
+            if (genderFilter === 'Female') return keyLower.includes('female') || keyLower.includes(' girl') || keyLower.includes('woman');
+            if (genderFilter === 'Male') return (keyLower.includes('male') && !keyLower.includes('female')) || keyLower.includes('boy') || keyLower.includes('man');
+
+            return true;
+        });
+    };
 
     const handleRingUpdate = async (updatedRings: Ring[]) => {
         setRings(updatedRings);
@@ -148,17 +207,55 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                     <span className="hidden sm:inline">Back to Dashboard</span>
                     <span className="sm:hidden">Back</span>
                 </button>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-800">Ring Assignment</h1>
+                <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 border border-blue-100 transition-all font-medium shadow-sm cursor-pointer border-dashed">
+                        <Upload size={18} />
+                        <span className="hidden sm:inline">{isImporting ? 'Importing...' : 'Import Data'}</span>
+                        <input
+                            type="file"
+                            accept=".csv"
+                            className="hidden"
+                            disabled={isImporting}
+                            onChange={(e) => {
+                                if (e.target.files?.[0]) handleImport(e.target.files[0]);
+                                e.target.value = ''; // Reset
+                            }}
+                        />
+                    </label>
+                    <h1 className="text-lg sm:text-xl font-bold text-gray-800">Ring Assignment</h1>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Unassigned Categories Panel */}
                 <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 h-fit lg:sticky lg:top-6 order-2 lg:order-1">
-                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                        <div className="w-7 sm:w-8 h-7 sm:h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                            <Layers size={14} className="text-amber-600 sm:w-4 sm:h-4" />
+                    <div className="flex flex-col gap-3 mb-3 sm:mb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 sm:w-8 h-7 sm:h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                                    <Layers size={14} className="text-amber-600 sm:w-4 sm:h-4" />
+                                </div>
+                                <h2 className="font-semibold text-gray-800 text-sm sm:text-base">Unassigned ({unassigned.length})</h2>
+                            </div>
+
+                            {/* Gender Filter */}
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                {(['All', 'Male', 'Female'] as const).map((filter) => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => setGenderFilter(filter)}
+                                        className={`
+                                            px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all
+                                            ${genderFilter === filter
+                                                ? 'bg-white text-gray-800 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'}
+                                        `}
+                                    >
+                                        {filter}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <h2 className="font-semibold text-gray-800 text-sm sm:text-base">Unassigned ({unassigned.length})</h2>
                     </div>
                     <div className="space-y-2 max-h-[300px] lg:max-h-[500px] overflow-y-auto pr-1">
                         {unassigned.length > 0 ? unassigned.map(cat => {
