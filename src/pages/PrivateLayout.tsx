@@ -6,7 +6,7 @@ import { Loader2, ShieldCheck, LogOut, Gavel, Medal } from 'lucide-react';
 
 export const PrivateLayout: React.FC = () => {
     const { tournamentId } = useParams<{ tournamentId: string }>();
-    const { loadTournament, resetData, tournamentId: currentId } = useTournament();
+    const { loadTournament, tournamentId: currentId } = useTournament();
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [tournamentPin, setTournamentPin] = useState('123456');
@@ -15,7 +15,6 @@ export const PrivateLayout: React.FC = () => {
     useEffect(() => {
         const init = async () => {
             if (tournamentId && tournamentId !== currentId) {
-                await resetData();
                 await loadTournament(tournamentId);
             }
 

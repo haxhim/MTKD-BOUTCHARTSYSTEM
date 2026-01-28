@@ -18,7 +18,7 @@ export interface BracketNodeProps {
 export const getSubtreeHeight = (matchId: string | undefined, matchMap: Map<string, Match>, scale: number = 1): number => {
     const scaledHeight = MATCH_HEIGHT * scale;
     const scaledGap = MATCH_GAP * scale;
-    
+
     if (!matchId) return scaledHeight;
     const match = matchMap.get(matchId);
     if (!match) return scaledHeight;
@@ -42,7 +42,7 @@ export const getSubtreeHeight = (matchId: string | undefined, matchMap: Map<stri
 const getMatchCenterOffset = (matchId: string | undefined, matchMap: Map<string, Match>, scale: number = 1): number => {
     const scaledHeight = MATCH_HEIGHT * scale;
     const scaledGap = MATCH_GAP * scale;
-    
+
     if (!matchId) return scaledHeight / 2;
     const match = matchMap.get(matchId);
     if (!match) return scaledHeight / 2;
@@ -91,18 +91,18 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
             club = p.club;
         }
 
-        const sideColors = side === 'red' 
+        const sideColors = side === 'red'
             ? { bar: 'bg-red-500', winBg: 'bg-gradient-to-r from-red-50 to-transparent' }
             : { bar: 'bg-blue-500', winBg: 'bg-gradient-to-r from-blue-50 to-transparent' };
 
         return (
-            <div 
+            <div
                 className={`bracket-player px-2 py-1.5 flex items-center gap-2 transition-all ${isWinner ? sideColors.winBg : ''} ${isBye ? 'opacity-40' : ''}`}
                 style={{ minHeight: `${scaledHeight * 0.38}px` }}
             >
                 <div className={`w-1 ${sideColors.bar} rounded-full shrink-0 self-stretch`}></div>
                 <div className="flex-1 min-w-0">
-                    <div 
+                    <div
                         className={`font-semibold truncate ${isWinner ? 'text-gray-900' : 'text-gray-700'}`}
                         style={{ fontSize: `${Math.max(11, 12 * scale)}px` }}
                         title={name}
@@ -111,8 +111,8 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                         {isWinner && <span className="ml-1 text-emerald-500">✓</span>}
                     </div>
                     {club && (
-                        <div 
-                            className="text-gray-400 truncate" 
+                        <div
+                            className="text-gray-400 truncate"
                             style={{ fontSize: `${Math.max(9, 10 * scale)}px` }}
                         >
                             {club}
@@ -145,8 +145,8 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
             {hasChildren && (
                 <>
                     {/* Child matches container */}
-                    <div 
-                        className="flex flex-col shrink-0" 
+                    <div
+                        className="flex flex-col shrink-0"
                         style={{ gap: `${scaledGap}px` }}
                     >
                         <BracketNode matchId={leftChildId!} matchMap={matchMap} depth={depth + 1} scale={scale} />
@@ -158,7 +158,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                         className="connector-lines shrink-0"
                         width={scaledConnector}
                         height={totalChildHeight}
-                        style={{ 
+                        style={{
                             display: 'block',
                             overflow: 'visible'
                         }}
@@ -173,7 +173,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                             strokeWidth={lineWidth}
                             strokeLinecap="square"
                         />
-                        
+
                         {/* Horizontal line from bottom child match card to junction */}
                         <line
                             x1={0}
@@ -184,7 +184,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                             strokeWidth={lineWidth}
                             strokeLinecap="square"
                         />
-                        
+
                         {/* Vertical line connecting top and bottom */}
                         <line
                             x1={junctionX}
@@ -195,7 +195,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                             strokeWidth={lineWidth}
                             strokeLinecap="square"
                         />
-                        
+
                         {/* Horizontal line from junction to parent match card */}
                         <line
                             x1={junctionX}
@@ -215,27 +215,27 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                 className={`bracket-match bg-white border rounded-lg shadow-sm flex flex-col justify-center relative shrink-0 z-10 transition-all duration-200 hover:shadow-md hover:border-blue-200 overflow-hidden
                     ${isFinal ? 'border-amber-300 ring-2 ring-amber-100 shadow-amber-100/50' : 'border-gray-200'}
                     ${match.winner ? 'border-emerald-200' : ''}`}
-                style={{ 
-                    width: `${scaledWidth}px`, 
+                style={{
+                    width: `${scaledWidth}px`,
                     height: `${scaledHeight}px`,
                     minWidth: `${Math.max(140, scaledWidth)}px`
                 }}
             >
                 {/* Bout Number Badge */}
-                {match.bout_number && (
-                    <div 
+                {match.bout_number && match.bout_number !== '0' && (
+                    <div
                         className={`absolute top-0 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-b-md font-bold shadow-sm z-20
-                            ${isFinal 
-                                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' 
+                            ${isFinal
+                                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white'
                                 : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white'}`}
                         style={{ fontSize: `${Math.max(8, 9 * scale)}px` }}
                     >
                         {match.bout_number}
                     </div>
                 )}
-                
+
                 {/* Round Label */}
-                <div 
+                <div
                     className={`absolute top-1 right-1.5 font-semibold uppercase tracking-wider
                         ${isFinal ? 'text-amber-500' : 'text-gray-400'}`}
                     style={{ fontSize: `${Math.max(7, 8 * scale)}px` }}

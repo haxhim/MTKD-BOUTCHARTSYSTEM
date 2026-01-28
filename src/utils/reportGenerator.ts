@@ -104,7 +104,7 @@ const collectFutureBouts = (
     if (!bouts) return;
 
     // Add current match's bout number with side
-    if (currentMatch.bout_number) {
+    if (currentMatch.bout_number && currentMatch.bout_number !== '0') {
         const boutLabel = side ? `${currentMatch.bout_number} (${side})` : currentMatch.bout_number;
         bouts.add(boutLabel);
     }

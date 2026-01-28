@@ -188,7 +188,10 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                                     winner: m.winner_id ? partMap.get(m.winner_id) : undefined,
                                     nextMatchId: m.next_match_id,
                                     leftChildId: m.left_child_id || undefined, // Hydrate from DB
-                                    rightChildId: m.right_child_id || undefined
+                                    rightChildId: m.right_child_id || undefined,
+                                    score: m.score ?? undefined,
+                                    rank: m.rank ?? undefined,
+                                    is_table_mode: m.is_table_mode ?? undefined
                                 };
 
                                 if (!newMap.has(categoryKey)) {
@@ -227,6 +230,9 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                         });
 
                         setMatches(newMap);
+                    } else {
+                        // Ensure stale matches are cleared when none exist in DB
+                        setMatches(new Map());
                     }
 
                 }
@@ -335,7 +341,10 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                                 next_match_id: item.match.nextMatchId,
                                 left_child_id: item.match.leftChildId,
                                 right_child_id: item.match.rightChildId,
-                                category_key: item.categoryKey
+                                category_key: item.categoryKey,
+                                score: item.match.score ?? null,
+                                rank: item.match.rank ?? null,
+                                is_table_mode: item.match.is_table_mode ?? null
                             })), { onConflict: 'id' });
                     };
 
@@ -397,7 +406,12 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                     winner_id: (typeof m.winner === 'object' && m.winner) ? m.winner.id : null,
                     ring_id: m.ring,
                     round_name: m.round,
-                    next_match_id: m.nextMatchId
+                    next_match_id: m.nextMatchId,
+                    left_child_id: m.leftChildId,
+                    right_child_id: m.rightChildId,
+                    score: m.score ?? null,
+                    rank: m.rank ?? null,
+                    is_table_mode: m.is_table_mode ?? null
                 };
             });
 

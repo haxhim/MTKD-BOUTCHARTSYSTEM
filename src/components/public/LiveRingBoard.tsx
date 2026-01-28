@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Clock, User, Trophy, Users } from 'lucide-react';
 import type { Participant, Match } from '../../types';
+import { getRingQueue } from '../../utils/tournamentLogic';
 
 // Extended match type with category info
 interface ExtendedMatch extends Match {
@@ -16,42 +17,46 @@ export const LiveRingBoard: React.FC = () => {
         const sortedRings = [...rings].sort((a, b) => a.name.localeCompare(b.name));
 
         return sortedRings.map(ring => {
-            // Find all matches for this ring
-            const ringMatches: ExtendedMatch[] = [];
-            matches.forEach((catMatches, categoryKey) => {
-                catMatches.forEach(m => {
-                    if (m.ring === ring.id) {
-                        ringMatches.push({ ...m, category: categoryKey });
-                    }
-                });
-            });
+            // Use Shared Logic
+            const queueResult = getRingQueue(matches, ring.id, rings);
 
             // Check if this ring is in Table Mode
             const isTableMode = ring.bout_mode?.includes('table');
 
+            // For Table Mode: Prepare table data
+            let tableData: any[] = [];
             if (isTableMode) {
-                // For Table Mode: Show all participants with their scores/ranks
-                const tableData: {
-                    category: string;
-                    participants: Array<{
-                        name: string;
-                        club: string;
-                        score: number;
-                        rank?: number;
-                    }>;
-                }[] = [];
-
                 // Group by category for table mode
                 const categoryMap = new Map<string, ExtendedMatch[]>();
-                ringMatches.forEach(m => {
-                    const cat = m.category || 'Unknown';
-                    if (!categoryMap.has(cat)) categoryMap.set(cat, []);
-                    categoryMap.get(cat)!.push(m);
+                // We need to re-find category names because queueResult.allMatches doesn't have categoryKey easily separate
+                // Actually matches map has keys.
+                // iterate matches map to find categories belonging to this ring again?
+                // Or since queueResult.allMatches has everything, we can try to find category?
+                // Match object doesn't store category Name directly usually? 
+                // Ah, Match object might not have category Key. 
+                // In JudgeInterface, we constructed queues manually. 
+                // getRingQueue returns plain matches. 
+                // We need to map back to categories.
+                // Let's iterate matches map again to build category info?
+
+                // Optimized approach: 
+                // We track matches and their categories.
+
+                // Let's map queueResult.allMatches back to categories?
+                // Actually, efficient way:
+                matches.forEach((catMatches, catKey) => {
+                    catMatches.forEach(m => {
+                        if (m.ring === ring.id) {
+                            if (!categoryMap.has(catKey)) categoryMap.set(catKey, []);
+                            categoryMap.get(catKey)!.push({ ...m, category: catKey });
+                        }
+                    });
                 });
 
                 categoryMap.forEach((catMatches, cat) => {
                     const participants: Array<{ name: string; club: string; score: number; rank?: number }> = [];
                     catMatches.forEach(m => {
+                        // Logic to extract participants from match
                         const addParticipant = (p: Participant | string | null, score: number, rank?: number) => {
                             if (p && typeof p !== 'string' && p.name) {
                                 participants.push({
@@ -70,28 +75,33 @@ export const LiveRingBoard: React.FC = () => {
                         tableData.push({ category: cat, participants });
                     }
                 });
-
-                return {
-                    ring,
-                    isTableMode: true,
-                    tableData,
-                    current: null as ExtendedMatch | null,
-                    next: null as ExtendedMatch | null
-                };
-            } else {
-                // Tree Mode: Find current and next matches
-                const pendingMatches = ringMatches.filter(m => !m.winner);
-                const currentMatch = pendingMatches[0] || null;
-                const nextMatch = pendingMatches[1] || null;
-
-                return {
-                    ring,
-                    isTableMode: false,
-                    tableData: [],
-                    current: currentMatch,
-                    next: nextMatch
-                };
             }
+
+            // Current and Next Logic (Synced with Judge)
+            const currentMatch = queueResult.activeMatch;
+            const nextMatch = queueResult.pendingMatches && queueResult.pendingMatches.length > 1 ? queueResult.pendingMatches[1] : null;
+
+            // Enrich current/next with category name if possible
+            // Iterate all matches to find category for current/next match ID
+            const enrichMatch = (m: Match | null) => {
+                if (!m) return null;
+                let catName = '';
+                for (const [key, list] of matches.entries()) {
+                    if (list.some(x => x.id === m.id)) {
+                        catName = key;
+                        break;
+                    }
+                }
+                return { ...m, category: catName };
+            };
+
+            return {
+                ring,
+                isTableMode,
+                tableData,
+                current: enrichMatch(currentMatch),
+                next: enrichMatch(nextMatch)
+            };
         });
     }, [rings, matches]);
 
@@ -108,7 +118,7 @@ export const LiveRingBoard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn pb-10">
             <div className="flex items-center gap-3 mb-4">
                 <span className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -147,14 +157,14 @@ export const LiveRingBoard: React.FC = () => {
                                 // TABLE MODE: Show participants with scores
                                 <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
                                     {tableData.length > 0 ? (
-                                        tableData.map(({ category, participants }) => (
+                                        tableData.map(({ category, participants }: any) => (
                                             <div key={category}>
                                                 <div className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-2">
                                                     <Users size={12} />
                                                     {category.length > 40 ? category.slice(0, 40) + '...' : category}
                                                 </div>
                                                 <div className="space-y-1">
-                                                    {participants.slice(0, 8).map((p, i) => (
+                                                    {participants.slice(0, 8).map((p: any, i: number) => (
                                                         <div
                                                             key={i}
                                                             className={`flex items-center justify-between p-3 rounded-lg transition-all ${p.rank === 1 ? 'bg-amber-50 border border-amber-200' :
@@ -198,11 +208,17 @@ export const LiveRingBoard: React.FC = () => {
                                 <div className="p-6 flex flex-col justify-center min-h-[220px]">
                                     {current ? (
                                         <div className="space-y-6">
-                                            <div className="text-center">
+                                            <div className="text-center relative">
+                                                <div className="absolute top-0 right-0">
+                                                    <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">
+                                                        Bout {current.bout_number?.replace(/\D/g, '') || '#'}
+                                                    </div>
+                                                </div>
+
                                                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Now Playing</span>
                                                 {current.category && (
-                                                    <div className="text-sm font-medium text-blue-600 mt-1 truncate max-w-[250px] mx-auto" title={current.category}>
-                                                        {current.category.length > 35 ? current.category.slice(0, 35) + '...' : current.category}
+                                                    <div className="text-sm font-bold text-blue-700 mt-1 truncate max-w-[280px] mx-auto px-2" title={current.category}>
+                                                        {current.category}
                                                     </div>
                                                 )}
                                             </div>
@@ -210,28 +226,28 @@ export const LiveRingBoard: React.FC = () => {
                                             <div className="flex justify-between items-center gap-4">
                                                 {/* Red Corner */}
                                                 <div className="flex-1 text-center">
-                                                    <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
-                                                        <User size={24} />
+                                                    <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg ring-4 ring-red-50">
+                                                        <User size={28} />
                                                     </div>
-                                                    <div className="font-bold text-gray-900 leading-tight">{getParticipantName(current.red)}</div>
-                                                    <div className="text-xs text-gray-500">{getClubName(current.red)}</div>
+                                                    <div className="font-bold text-gray-900 leading-tight text-lg mb-1">{getParticipantName(current.red)}</div>
+                                                    <div className="text-sm text-gray-500 font-medium">{getClubName(current.red)}</div>
                                                 </div>
 
-                                                <div className="text-3xl font-black text-gray-200">VS</div>
+                                                <div className="text-4xl font-black text-slate-200 italic">VS</div>
 
                                                 {/* Blue Corner */}
                                                 <div className="flex-1 text-center">
-                                                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
-                                                        <User size={24} />
+                                                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg ring-4 ring-blue-50">
+                                                        <User size={28} />
                                                     </div>
-                                                    <div className="font-bold text-gray-900 leading-tight">{getParticipantName(current.blue)}</div>
-                                                    <div className="text-xs text-gray-500">{getClubName(current.blue)}</div>
+                                                    <div className="font-bold text-gray-900 leading-tight text-lg mb-1">{getParticipantName(current.blue)}</div>
+                                                    <div className="text-sm text-gray-500 font-medium">{getClubName(current.blue)}</div>
                                                 </div>
                                             </div>
 
                                             {current.round && (
-                                                <div className="text-center">
-                                                    <span className="inline-block px-4 py-1.5 bg-gray-100 rounded-full text-xs font-bold text-gray-600">
+                                                <div className="text-center pt-2">
+                                                    <span className="inline-block px-4 py-1.5 bg-gray-100 rounded-full text-xs font-bold text-gray-600 uppercase tracking-wide">
                                                         {current.round}
                                                     </span>
                                                 </div>
@@ -257,13 +273,26 @@ export const LiveRingBoard: React.FC = () => {
                                 </div>
                                 {next ? (
                                     <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                                        <span className="font-medium text-gray-700 truncate max-w-[40%]">
-                                            {getParticipantName(next.red)}
-                                        </span>
-                                        <span className="text-xs text-gray-400 font-bold">vs</span>
-                                        <span className="font-medium text-gray-700 truncate max-w-[40%] text-right">
-                                            {getParticipantName(next.blue)}
-                                        </span>
+                                        <div className="flex flex-col items-start min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 mb-1 w-full">
+                                                <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-gray-200">
+                                                    #{next.bout_number?.replace(/\D/g, '')}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 truncate flex-1 block">
+                                                    {next.category}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between w-full items-center">
+                                                <span className="font-bold text-gray-700 truncate max-w-[40%] text-sm">
+                                                    {getParticipantName(next.red)}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-bold px-2">VS</span>
+                                                <span className="font-bold text-gray-700 truncate max-w-[40%] text-right text-sm">
+                                                    {getParticipantName(next.blue)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <span className="text-gray-400 text-sm italic">No upcoming matches</span>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { seedParticipants } from '../utils/seedingAlgorithm';
 import { generateMatches, assignBoutNumbers } from '../utils/matchGenerator';
+import { getRingQueue } from '../utils/tournamentLogic';
 import type { Match, Participant } from '../types';
 import { BracketNode } from './BracketNode';
 import { ChevronLeft, ChevronRight, Printer, ZoomIn, ZoomOut, RotateCcw, Maximize2, Circle } from 'lucide-react';
@@ -32,12 +33,19 @@ const useResponsiveScale = () => {
 
 export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const { participants, rings, matches, setMatches } = useTournament();
-    const [selectedRingId, setSelectedRingId] = useState<string>(rings[0]?.id || '');
+    const [selectedRingId, setSelectedRingId] = useState<string>(rings.length > 0 ? rings[0].id : '');
     const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
     const [manualScale, setManualScale] = useState<number | null>(null);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const autoScale = useResponsiveScale();
     const scale = manualScale ?? autoScale;
+
+    // Get Ring Queue Status (Live)
+    const ringQueue = React.useMemo(() => {
+        return getRingQueue(matches, selectedRingId, rings);
+    }, [matches, selectedRingId, rings]);
+
+    const activeMatch = ringQueue.activeMatch;
 
     // Ensure matches are generated
     useEffect(() => {
@@ -218,6 +226,70 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
             {/* Main Content Area - Carousel Style */}
             <div className="flex-1 flex flex-col overflow-hidden bg-white border border-gray-100 rounded-xl sm:rounded-2xl shadow-sm">
+
+                {/* Active Match Banner */}
+                {activeMatch && (
+                    <div className="bg-gradient-to-r from-blue-900 to-slate-900 text-white p-4 sm:p-5 shrink-0 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+
+                        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-inner">
+                                    <span className="font-mono text-xl font-bold tracking-wider text-blue-100">
+                                        {activeMatch.bout_number?.replace(/\D/g, '') || '#'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white shadow-sm animate-pulse">
+                                            Live Now
+                                        </div>
+                                        <span className="text-blue-200 text-sm font-medium tracking-wide">
+                                            {activeMatch.is_table_mode ? 'Table Mode' : `Bout ${activeMatch.bout_number}`}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-xl sm:text-2xl font-bold leading-none tracking-tight">
+                                        {typeof activeMatch.red !== 'string' ? activeMatch.red?.category : 'Unknown Category'}
+                                    </h2>
+                                    <div className="text-blue-300 text-sm flex items-center gap-2 mt-1">
+                                        <span className="bg-white/10 px-2 py-0.5 rounded text-xs">{activeMatch.round}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* VS Display */}
+                            {!activeMatch.is_table_mode ? (
+                                <div className="flex items-center gap-3 sm:gap-6 w-full sm:w-auto justify-center sm:justify-end">
+                                    <div className="text-right">
+                                        <div className="text-lg sm:text-2xl font-bold truncate max-w-[120px] sm:max-w-[160px]">
+                                            {typeof activeMatch.red === 'string' ? activeMatch.red : activeMatch.red?.name}
+                                        </div>
+                                        <div className="text-red-400 text-xs sm:text-sm font-medium uppercase tracking-wider">Red Corner</div>
+                                    </div>
+
+                                    <div className="text-2xl font-black italic text-blue-500/50">VS</div>
+
+                                    <div className="text-left">
+                                        <div className="text-lg sm:text-2xl font-bold truncate max-w-[120px] sm:max-w-[160px]">
+                                            {typeof activeMatch.blue === 'string' ? activeMatch.blue : activeMatch.blue?.name}
+                                        </div>
+                                        <div className="text-blue-400 text-xs sm:text-sm font-medium uppercase tracking-wider">Blue Corner</div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                        <div className="text-xl sm:text-3xl font-bold">
+                                            {typeof activeMatch.red !== 'string' ? activeMatch.red?.name : 'Bye'}
+                                        </div>
+                                        <div className="text-blue-300 text-sm">{typeof activeMatch.red !== 'string' ? activeMatch.red?.club : ''}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {ringCategories.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center">
                         <div className="text-center py-16">
@@ -240,8 +312,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     onClick={goToPrevious}
                                     disabled={currentCategoryIndex === 0}
                                     className={`p-2.5 rounded-xl transition-all duration-200 ${currentCategoryIndex === 0
-                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
+                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
                                         }`}
                                 >
                                     <ChevronLeft size={20} />
@@ -254,8 +326,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                             key={cat!.key}
                                             onClick={() => goToCategory(index)}
                                             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 ${index === currentCategoryIndex
-                                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200 scale-105'
-                                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200 scale-105'
+                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                                                 }`}
                                         >
                                             {cat!.key}
@@ -268,8 +340,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                     onClick={goToNext}
                                     disabled={currentCategoryIndex === ringCategories.length - 1}
                                     className={`p-2.5 rounded-xl transition-all duration-200 ${currentCategoryIndex === ringCategories.length - 1
-                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
+                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 shadow-sm'
                                         }`}
                                 >
                                     <ChevronRight size={20} />
@@ -287,8 +359,8 @@ export const RingMatchView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                         <Circle
                                             size={index === currentCategoryIndex ? 10 : 8}
                                             className={`transition-all duration-200 ${index === currentCategoryIndex
-                                                    ? 'fill-blue-500 text-blue-500'
-                                                    : 'fill-gray-300 text-gray-300 hover:fill-gray-400 hover:text-gray-400'
+                                                ? 'fill-blue-500 text-blue-500'
+                                                : 'fill-gray-300 text-gray-300 hover:fill-gray-400 hover:text-gray-400'
                                                 }`}
                                         />
                                     </button>

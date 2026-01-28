@@ -14,7 +14,7 @@
   --primary-500: #3b82f6;
   --primary-600: #2563eb;
   --primary-700: #1d4ed8;
-  
+
   /* Neutral Palette */
   --neutral-50: #fafbfc;
   --neutral-100: #f4f6f8;
@@ -81,18 +81,39 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .animate-fadeIn {
@@ -104,7 +125,9 @@ body {
 }
 
 /* Focus States */
-input:focus, select:focus, button:focus-visible {
+input:focus,
+select:focus,
+button:focus-visible {
   outline: none;
   ring: 2px;
   ring-color: var(--primary-500);
@@ -112,26 +135,19 @@ input:focus, select:focus, button:focus-visible {
 
 /* Button Base Styles */
 .btn-primary {
-  @apply px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg 
-         hover:from-blue-700 hover:to-blue-800 active:scale-[0.98] transition-all duration-150 
-         shadow-sm hover:shadow-md;
+  @apply px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-md;
 }
 
 .btn-secondary {
-  @apply px-4 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-200
-         hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-150 shadow-sm;
+  @apply px-4 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all duration-150 shadow-sm;
 }
 
 .btn-success {
-  @apply px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-lg 
-         hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all duration-150 
-         shadow-sm hover:shadow-md;
+  @apply px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-md;
 }
 
 .btn-danger {
-  @apply px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg 
-         hover:from-red-600 hover:to-red-700 active:scale-[0.98] transition-all duration-150 
-         shadow-sm hover:shadow-md;
+  @apply px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-md;
 }
 
 /* Card Styles */
@@ -149,15 +165,11 @@ input:focus, select:focus, button:focus-visible {
 
 /* Input Styles */
 .input {
-  @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-800
-         placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100
-         transition-all duration-150;
+  @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-150;
 }
 
 .select {
-  @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-800
-         focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-150
-         cursor-pointer;
+  @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-150 cursor-pointer;
 }
 
 /* Table Styles */
@@ -227,7 +239,7 @@ input:focus, select:focus, button:focus-visible {
   .bracket-container {
     --bracket-scale: 0.65;
   }
-  
+
   .bracket-wrapper {
     padding: 0.5rem;
   }
@@ -402,6 +414,7 @@ input:focus, select:focus, button:focus-visible {
 }
 
 @media print {
+
   /* Page setup */
   @page {
     size: A4;
@@ -413,7 +426,8 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* Reset background and ensure colors print */
-  html, body {
+  html,
+  body {
     background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -421,7 +435,7 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === HIDE ALL UI ELEMENTS === */
-  
+
   /* Hide sidebar completely */
   aside,
   .sidebar,
@@ -445,7 +459,6 @@ input:focus, select:focus, button:focus-visible {
   input:not([type="hidden"]),
   .no-print,
   .print\:hidden,
-  [class*="hover:"],
   .animate-ping,
   .animate-pulse {
     display: none !important;
@@ -470,7 +483,7 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === SHOW MAIN CONTENT FULL WIDTH === */
-  
+
   /* Make main content full width */
   main,
   .main-content,
@@ -493,14 +506,15 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === TABLE PRINT STYLES === */
-  
+
   table {
     border-collapse: collapse !important;
     width: 100% !important;
     font-size: 10pt !important;
   }
 
-  th, td {
+  th,
+  td {
     border: 1px solid #ddd !important;
     padding: 6px 8px !important;
     text-align: left !important;
@@ -518,7 +532,7 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === CARD/BRACKET PRINT STYLES === */
-  
+
   .bg-white,
   .card,
   .rounded-xl,
@@ -540,7 +554,7 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === BRACKET SPECIFIC === */
-  
+
   .bracket-match {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
@@ -557,12 +571,22 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === TEXT ADJUSTMENTS === */
-  
-  h1 { font-size: 16pt !important; }
-  h2 { font-size: 14pt !important; }
-  h3 { font-size: 12pt !important; }
-  
-  p, span, div {
+
+  h1 {
+    font-size: 16pt !important;
+  }
+
+  h2 {
+    font-size: 14pt !important;
+  }
+
+  h3 {
+    font-size: 12pt !important;
+  }
+
+  p,
+  span,
+  div {
     font-size: 10pt !important;
     line-height: 1.4 !important;
   }
@@ -574,19 +598,19 @@ input:focus, select:focus, button:focus-visible {
   }
 
   /* === GRADIENTS TO SOLID === */
-  
+
   [class*="bg-gradient"] {
     background: #f3f4f6 !important;
   }
 
   /* === SPECIFIC COMPONENT FIXES === */
-  
+
   /* Winners view */
   .grid {
     display: block !important;
   }
 
-  .grid > * {
+  .grid>* {
     margin-bottom: 10px !important;
     break-inside: avoid !important;
   }
@@ -610,4 +634,3 @@ input:focus, select:focus, button:focus-visible {
     color: #000 !important;
   }
 }
-

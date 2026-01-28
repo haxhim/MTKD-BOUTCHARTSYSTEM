@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 export const PublicLayout: React.FC = () => {
     const { tournamentId } = useParams<{ tournamentId: string }>();
-    const { loadTournament, resetData, tournamentId: currentId } = useTournament();
+    const { loadTournament } = useTournament();
 
     const [isLoading, setIsLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -14,10 +14,6 @@ export const PublicLayout: React.FC = () => {
         const init = async () => {
             if (tournamentId) {
                 // Always load for public views to ensure fresh data
-                // Reset first if changing tournaments
-                if (tournamentId !== currentId) {
-                    await resetData();
-                }
                 await loadTournament(tournamentId);
             }
             setIsLoading(false);
