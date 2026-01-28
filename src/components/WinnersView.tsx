@@ -12,67 +12,93 @@ interface Podium {
 }
 
 export const WinnersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-    const { matches } = useTournament();
+    const { matches, rings } = useTournament();
 
     const podiums = useMemo(() => {
         const results: Podium[] = [];
 
         matches.forEach((catMatches, categoryKey) => {
-            // Find Final
-            // Assuming the logic: highest Round "Final" or last match in list?
-            // "Final" is round name.
+            if (catMatches.length === 0) return;
 
-            const finalMatch = catMatches.find(m => m.round === 'Final');
-            if (!finalMatch) return; // Incomplete category structure?
+            // Determine if Table Mode
+            const isTable = catMatches[0].is_table_mode;
 
-            // Determine Gold/Silver
             let gold: Participant | undefined;
             let silver: Participant | undefined;
-
-            if (finalMatch.winner && finalMatch.winner !== 'BYE') {
-                gold = finalMatch.winner as Participant;
-                // Silver is the loser
-                if (finalMatch.red === gold) {
-                    silver = finalMatch.blue === 'BYE' ? undefined : (finalMatch.blue as Participant);
-                } else {
-                    silver = finalMatch.red === 'BYE' ? undefined : (finalMatch.red as Participant);
-                }
-            }
-
-            // Determine Bronze (Losers of Semi Finals)
-            // Find matches that feed into Final
             const bronze: Participant[] = [];
-            const semiFinals = catMatches.filter(m => m.nextMatchId === finalMatch.id);
+            let lastRing = catMatches[0].ring; // Default
 
-            semiFinals.forEach(semi => {
-                // The loser of semi is bronze
-                if (semi.winner) {
-                    if (semi.red === semi.winner) {
-                        if (semi.blue && semi.blue !== 'BYE') bronze.push(semi.blue as Participant);
+            if (isTable) {
+                // --- TABLE MODE LOGIC ---
+                // Winners are determined by Rank (1, 2, 3) assigned in JudgeInterface
+                const goldMatch = catMatches.find(m => m.rank === 1);
+                const silverMatch = catMatches.find(m => m.rank === 2);
+                const bronzeMatch = catMatches.find(m => m.rank === 3);
+
+                if (goldMatch && goldMatch.red && goldMatch.red !== 'BYE') gold = goldMatch.red as Participant;
+                if (silverMatch && silverMatch.red && silverMatch.red !== 'BYE') silver = silverMatch.red as Participant;
+                if (bronzeMatch && bronzeMatch.red && bronzeMatch.red !== 'BYE') bronze.push(bronzeMatch.red as Participant);
+
+                // Track ring
+                if (goldMatch) lastRing = goldMatch.ring;
+
+            } else {
+                // --- TREE MODE LOGIC ---
+                // Find Final Match
+                const finalMatch = catMatches.find(m => m.round === 'Final');
+                if (!finalMatch) return;
+
+                lastRing = finalMatch.ring;
+
+                // Gold & Silver from Final
+                if (finalMatch.winner && finalMatch.winner !== 'BYE') {
+                    gold = finalMatch.winner as Participant;
+                    // Silver is the loser
+                    if (finalMatch.red === gold) {
+                        silver = finalMatch.blue === 'BYE' ? undefined : (finalMatch.blue as Participant);
                     } else {
-                        if (semi.red && semi.red !== 'BYE') bronze.push(semi.red as Participant);
+                        silver = finalMatch.red === 'BYE' ? undefined : (finalMatch.red as Participant);
                     }
                 }
-            });
+
+                // Bronze from Semi-Finals
+                const semiFinals = catMatches.filter(m => m.nextMatchId === finalMatch.id);
+                semiFinals.forEach(semi => {
+                    if (semi.winner) {
+                        if (semi.red === semi.winner) {
+                            if (semi.blue && semi.blue !== 'BYE') bronze.push(semi.blue as Participant);
+                        } else {
+                            if (semi.red && semi.red !== 'BYE') bronze.push(semi.red as Participant);
+                        }
+                    }
+                });
+            }
+
+            // Format Category Name for Splits (e.g. "Male_A" -> "Male - Group A")
+            let displayName = categoryKey;
+            // distinct split check: ends with _[A-Z]
+            // We can check if previous logic used single letters
+            const splitMatch = categoryKey.match(/^(.*)_([A-Z])$/);
+            if (splitMatch) {
+                displayName = `${splitMatch[1]} - Group ${splitMatch[2]}`;
+            }
+
+            // Resolve Ring Name
+            const ringObj = rings.find(r => r.id === lastRing);
+            const ringName = ringObj ? ringObj.name : (lastRing || 'N/A');
 
             results.push({
-                category: categoryKey,
-                lastRing: finalMatch.ring || 'N/A', // Display last ring number
+                category: displayName,
+                lastRing: ringName,
                 gold,
                 silver,
                 bronze
             });
         });
 
-        // Filter valid winners (at least one winner?)
-        // Or show all categories? User wants "winners view", implies showing filled results.
-        // But maybe show partials.
-
-        // Sort by Category Name? Or Ring?
-        // User said: "sort by category and ring ensure it will display the last ring number"
-        // Let's sort by Category Name first, then Ring?
+        // Sort by Category Name
         return results.sort((a, b) => a.category.localeCompare(b.category));
-    }, [matches]);
+    }, [matches, rings]);
 
     return (
         <div className="max-w-7xl mx-auto p-6 bg-gradient-to-br from-gray-50 to-slate-50 min-h-screen animate-fadeIn">
@@ -112,7 +138,7 @@ export const WinnersView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         <div className="bg-gradient-to-r from-gray-50 to-white px-5 py-4 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="font-bold text-gray-800 truncate pr-2 text-sm" title={podium.category}>{podium.category}</h3>
                             <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold border border-blue-100">
-                                Ring {podium.lastRing}
+                                {podium.lastRing}
                             </span>
                         </div>
 

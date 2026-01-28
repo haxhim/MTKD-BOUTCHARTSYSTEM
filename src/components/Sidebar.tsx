@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, onExit, isOpen = tru
 
     const navItems = [
         { path: `${baseUrl}/overview`, label: 'Dashboard', icon: LayoutDashboard },
-        { path: `${baseUrl}/participants`, label: 'Participants', icon: Users },
+        { path: `${baseUrl}/participants`, label: 'Participation', icon: Users },
         { path: `${baseUrl}/rings`, label: 'Ring Assignment', icon: Network },
         { path: `${baseUrl}/brackets`, label: 'Brackets', icon: Swords },
         { path: `${baseUrl}/matches`, label: 'Match Control', icon: FileSpreadsheet },

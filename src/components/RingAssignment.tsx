@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
-import type { Ring } from '../types';
+import type { Ring, BoutMode } from '../types';
 import { generateId } from '../utils/uuid';
 import { assignBoutNumbers } from '../utils/matchGenerator';
 import { parseCSV } from '../utils/csvParser';
 import { generateCategoryTally } from '../utils/tallyGenerator';
 import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload, RefreshCw } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [newRingName, setNewRingName] = useState('');
@@ -13,8 +15,18 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
     const [genderFilter, setGenderFilter] = useState<'All' | 'Male' | 'Female'>('All');
     const [isImporting, setIsImporting] = useState(false);
 
-    // We need matches and setMatches from useTournament
-    const { categorySummaries, rings, setRings, matches, setMatches, saveData, deleteRing, participants, setParticipants, setCategorySummaries } = useTournament();
+    const {
+        categorySummaries,
+        rings,
+        setRings,
+        matches,
+        setMatches,
+        saveData,
+        participants,
+        setParticipants,
+        setCategorySummaries,
+        tournamentId
+    } = useTournament();
 
     const handleImport = async (file: File) => {
         if (!file) return;
@@ -36,7 +48,17 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 const newSummaries = generateCategoryTally(mergedParticipants);
                 setCategorySummaries(newSummaries);
 
-                // Persist immediately
+                // Log Import
+                if (tournamentId) {
+                    await supabase.from('import_logs').insert({
+                        tournament_id: tournamentId,
+                        file_name: file.name,
+                        row_count: content.split('\n').length,
+                        valid_count: newParticipants.length,
+                        rejected_count: Math.max(0, content.split('\n').length - newParticipants.length - 1) // Minus header
+                    });
+                }
+
                 await saveData(mergedParticipants);
                 alert(`Successfully imported ${newParticipants.length} participants.`);
             } catch (err) {
@@ -49,7 +71,65 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
         reader.readAsText(file);
     };
 
-    // Helper to get unassigned categories
+    const handleRingUpdate = async (updatedRings: Ring[]) => {
+        setRings(updatedRings);
+        const newMatches = new Map(matches);
+        assignBoutNumbers(updatedRings, newMatches);
+        setMatches(newMatches);
+        await saveData(undefined, updatedRings);
+    };
+
+    const handleModeChange = async (ringId: string, newMode: BoutMode) => {
+        const ring = rings.find(r => r.id === ringId);
+        if (!ring) return;
+
+        // 1. Identify categories to clear
+        const categoriesToClear: string[] = [];
+        Object.values(ring.priorityGroups).forEach(group => {
+            group.forEach(cat => {
+                categoriesToClear.push(cat);
+                // Also find splits in current matches
+                // Matches map keys
+                for (const key of matches.keys()) {
+                    if (key.startsWith(cat + '_')) {
+                        categoriesToClear.push(key);
+                    }
+                }
+            });
+        });
+
+        // 2. Clear from Supabase (Critical to prevent stale matches)
+        // We use 'like' for splits or just IN list
+        if (categoriesToClear.length > 0 && tournamentId) {
+            // We can't delete by ID easily without fetching.
+            // Delete by tournament_id AND category_key (Wait, match doesn't have category_key column? 
+            // matches table has `category_key`? No. 
+            // matches table has IDs. 
+            // We have the matches in Memory.
+            const matchIdsToDelete: string[] = [];
+            categoriesToClear.forEach(c => {
+                const list = matches.get(c);
+                if (list) list.forEach(m => matchIdsToDelete.push(m.id));
+            });
+
+            if (matchIdsToDelete.length > 0) {
+                await supabase.from('matches').delete().in('id', matchIdsToDelete);
+            }
+        }
+
+        // 3. Update Local State (Clear matches)
+        const newMatches = new Map(matches);
+        categoriesToClear.forEach(c => newMatches.delete(c));
+        setMatches(newMatches);
+
+        // 4. Update Ring Mode
+        const updatedRings = rings.map(r => r.id === ringId ? { ...r, bout_mode: newMode } : r);
+
+        // 5. Trigger Update & Save
+        await handleRingUpdate(updatedRings);
+    };
+
+    // ... (Other helpers like unassigned, bout count etc remain similar)
     const getUnassignedCategories = () => {
         const assigned = new Set<string>();
         rings.forEach(r => {
@@ -60,46 +140,20 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
 
         return categorySummaries.filter(c => {
             if (assigned.has(c.category_key)) return false;
-
-            // Apply Gender Filter
-            if (genderFilter === 'All') return true;
-            // Assuming category key format "Category Gender" or checks age group helper if needed.
-            // But we can check raw category string if standard: "WeightClass MALE"
-            // Or assume the summary doesn't retain gender explicitly, but `category_key` usually ends with "Male" or "Female" or "M" / "F"?
-            // Let's check `generateCategoryTally`. It groups by `category_key`.
-            // In `parseCSV`, `category_key = ${category} ${gender}`.
-            // So checking if key contains gender string is safest heuristic.
-
-            // Heuristic case-insensitive check
             const keyLower = c.category_key.toLowerCase();
-            if (genderFilter === 'Male') return keyLower.includes('male') && !keyLower.includes('female'); // "Male" but checking "Female" just in case "Female" contains "male" substring? No, "female" has "male", so include 'male' is risky for 'female'.
-            // Actually "Female" contains "male".
-            // So:
-            if (genderFilter === 'Female') return keyLower.includes('female') || keyLower.includes(' girl') || keyLower.includes('woman');
             if (genderFilter === 'Male') return (keyLower.includes('male') && !keyLower.includes('female')) || keyLower.includes('boy') || keyLower.includes('man');
-
+            if (genderFilter === 'Female') return keyLower.includes('female') || keyLower.includes('girl') || keyLower.includes('woman');
             return true;
         });
     };
-
-    const handleRingUpdate = async (updatedRings: Ring[]) => {
-        setRings(updatedRings);
-        const newMatches = new Map(matches);
-        assignBoutNumbers(updatedRings, newMatches);
-        setMatches(newMatches);
-
-        // Auto-save rings and matches immediately
-        // We pass updatedRings specifically to ensure the latest state is saved
-        await saveData(undefined, updatedRings);
-    };
-
 
     const addRing = () => {
         if (!newRingName.trim()) return;
         const newRing: Ring = {
             id: generateId(),
             name: newRingName,
-            priorityGroups: { 1: [] }
+            priorityGroups: { 1: [] },
+            bout_mode: 'tree_pro'
         };
         handleRingUpdate([...rings, newRing]);
         setNewRingName('');
@@ -112,10 +166,7 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 const maxPriority = priorities.length > 0 ? Math.max(...priorities) : 0;
                 return {
                     ...r,
-                    priorityGroups: {
-                        ...r.priorityGroups,
-                        [maxPriority + 1]: []
-                    }
+                    priorityGroups: { ...r.priorityGroups, [maxPriority + 1]: [] }
                 };
             }
             return r;
@@ -128,19 +179,11 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
             if (r.id === ringId) {
                 const newPriorityGroups: { [key: number]: string[] } = {};
                 const priorities = Object.keys(r.priorityGroups).map(Number).sort((a, b) => a - b);
-
                 priorities.forEach(p => {
-                    if (p < priorityToRemove) {
-                        newPriorityGroups[p] = r.priorityGroups[p];
-                    } else if (p > priorityToRemove) {
-                        newPriorityGroups[p - 1] = r.priorityGroups[p];
-                    }
+                    if (p < priorityToRemove) newPriorityGroups[p] = r.priorityGroups[p];
+                    else if (p > priorityToRemove) newPriorityGroups[p - 1] = r.priorityGroups[p];
                 });
-
-                return {
-                    ...r,
-                    priorityGroups: newPriorityGroups
-                };
+                return { ...r, priorityGroups: newPriorityGroups };
             }
             return r;
         });
@@ -153,10 +196,7 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 const currentGroup = r.priorityGroups[priority] || [];
                 return {
                     ...r,
-                    priorityGroups: {
-                        ...r.priorityGroups,
-                        [priority]: [...currentGroup, categoryKey]
-                    }
+                    priorityGroups: { ...r.priorityGroups, [priority]: [...currentGroup, categoryKey] }
                 };
             }
             return r;
@@ -170,10 +210,7 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                 const currentGroup = r.priorityGroups[priority] || [];
                 return {
                     ...r,
-                    priorityGroups: {
-                        ...r.priorityGroups,
-                        [priority]: currentGroup.filter(c => c !== categoryKey)
-                    }
+                    priorityGroups: { ...r.priorityGroups, [priority]: currentGroup.filter(c => c !== categoryKey) }
                 };
             }
             return r;
@@ -198,316 +235,269 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
     return (
         <div className="max-w-6xl mx-auto p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-gray-50 to-slate-50 min-h-screen animate-fadeIn">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
                 <button
                     onClick={onBack}
                     className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-medium transition-colors group touch-target"
                 >
                     <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                    <span className="hidden sm:inline">Back to Dashboard</span>
-                    <span className="sm:hidden">Back</span>
+                    Back to Dashboard
                 </button>
-                <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 border border-blue-100 transition-all font-medium shadow-sm cursor-pointer border-dashed">
-                        <Upload size={18} />
-                        <span className="hidden sm:inline">{isImporting ? 'Importing...' : 'Import Data'}</span>
+                <div className="flex flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
+                    <label className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white rounded-lg sm:rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors shadow-sm">
+                        <Upload size={18} className="text-blue-500" />
+                        <span className="text-sm font-medium text-gray-700">{isImporting ? 'Importing...' : 'Import CSV'}</span>
                         <input
                             type="file"
                             accept=".csv"
+                            onChange={(e) => e.target.files && handleImport(e.target.files[0])}
                             className="hidden"
                             disabled={isImporting}
-                            onChange={(e) => {
-                                if (e.target.files?.[0]) handleImport(e.target.files[0]);
-                                e.target.value = ''; // Reset
-                            }}
                         />
                     </label>
-
-                    {/* Regenerate Button */}
-                    <button
-                        onClick={() => {
-                            if (confirm("Regenerate all bout numbers? This will fix sorting issues.")) {
-                                handleRingUpdate(rings);
-                            }
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 bg-white text-gray-600 rounded-xl hover:bg-gray-50 border border-gray-200 transition-all font-medium shadow-sm hover:text-blue-600"
-                        title="Regenerate Bout Numbers"
+                    <select
+                        value={genderFilter}
+                        onChange={(e) => setGenderFilter(e.target.value as any)}
+                        className="px-3 sm:px-4 py-2 border border-gray-200 rounded-lg sm:rounded-xl bg-white text-gray-700 font-medium focus:ring-4 focus:ring-blue-50 focus:border-blue-300 outline-none shadow-sm text-sm"
                     >
-                        <RefreshCw size={18} />
-                    </button>
-
-                    <h1 className="text-lg sm:text-xl font-bold text-gray-800">Ring Assignment</h1>
+                        <option value="All">All Genders</option>
+                        <option value="Male">Male Only</option>
+                        <option value="Female">Female Only</option>
+                    </select>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                {/* Unassigned Categories Panel */}
-                <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 h-fit lg:sticky lg:top-6 order-2 lg:order-1">
-                    <div className="flex flex-col gap-3 mb-3 sm:mb-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-7 sm:w-8 h-7 sm:h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                                    <Layers size={14} className="text-amber-600 sm:w-4 sm:h-4" />
-                                </div>
-                                <h2 className="font-semibold text-gray-800 text-sm sm:text-base">Unassigned ({unassigned.length})</h2>
-                            </div>
-
-                            {/* Gender Filter */}
-                            <div className="flex bg-gray-100 rounded-lg p-1">
-                                {(['All', 'Male', 'Female'] as const).map((filter) => (
-                                    <button
-                                        key={filter}
-                                        onClick={() => setGenderFilter(filter)}
-                                        className={`
-                                            px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all
-                                            ${genderFilter === filter
-                                                ? 'bg-white text-gray-800 shadow-sm'
-                                                : 'text-gray-500 hover:text-gray-700'}
-                                        `}
-                                    >
-                                        {filter}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-2 max-h-[300px] lg:max-h-[500px] overflow-y-auto pr-1">
-                        {unassigned.length > 0 ? unassigned.map(cat => {
-                            const bouts = getBoutCount(cat.category_key);
-                            return (
-                                <div key={cat.category_key} className="p-2.5 sm:p-3 bg-gradient-to-r from-gray-50 to-transparent rounded-lg sm:rounded-xl border border-gray-100 flex justify-between items-center group hover:border-blue-200 transition-colors">
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                        <span className="text-xs sm:text-sm text-gray-700 font-medium truncate">{cat.category_key}</span>
-                                        <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1">
-                                            <span className="text-[10px] sm:text-xs text-gray-400">{cat.count} participants</span>
-                                            <span className="w-0.5 sm:w-1 h-0.5 sm:h-1 bg-gray-300 rounded-full"></span>
-                                            <span className="text-[10px] sm:text-xs text-blue-500 font-medium">{bouts} bouts</span>
-                                        </div>
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+                {/* Left Column: Unassigned */}
+                <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col h-[500px] sm:h-[600px] sticky top-6">
+                        <h2 className="font-bold text-gray-800 mb-4 flex items-center justify-between text-base sm:text-lg">
+                            <span>Unassigned Categories</span>
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">{unassigned.length}</span>
+                        </h2>
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                            {unassigned.map(cat => (
+                                <div
+                                    key={cat.category_key}
+                                    draggable
+                                    onDragStart={(e) => {
+                                        e.dataTransfer.setData('categoryKey', cat.category_key);
+                                    }}
+                                    className="p-3 bg-gray-50 border border-gray-100 rounded-lg sm:rounded-xl cursor-move hover:bg-white hover:border-blue-300 hover:shadow-md transition-all group active:scale-[0.98] touch-manipulation"
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">{cat.category_key}</span>
+                                        <span className="text-xs font-semibold bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-500 group-hover:border-blue-200 group-hover:text-blue-600">
+                                            {cat.count}
+                                        </span>
                                     </div>
-                                    {/* Dropdown to assign */}
-                                    <select
-                                        className="text-[10px] sm:text-xs p-1.5 sm:p-2 rounded-lg border border-gray-200 bg-white text-gray-600 ml-2 focus:border-blue-300 focus:ring-2 focus:ring-blue-50 outline-none transition-all cursor-pointer touch-target"
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                const [rId, p] = e.target.value.split(':');
-                                                assignCategory(rId, parseInt(p), cat.category_key);
-                                            }
-                                        }}
-                                        value=""
-                                    >
-                                        <option value="">Assign to...</option>
-                                        {rings.map(r => (
-                                            <optgroup key={r.id} label={r.name}>
-                                                {Object.keys(r.priorityGroups).map(Number).sort((a, b) => a - b).map(p => (
-                                                    <option key={p} value={`${r.id}:${p}`}>Priority {p}</option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <span className="text-[10px] text-gray-400 font-mono">
+                                            Age: {cat.ageGroup}
+                                        </span>
+                                    </div>
                                 </div>
-                            );
-                        }) : (
-                            <div className="py-6 sm:py-8 text-center">
-                                <div className="w-10 sm:w-12 h-10 sm:h-12 bg-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
-                                    <svg className="w-5 sm:w-6 h-5 sm:h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
+                            ))}
+                            {unassigned.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-300 italic">
+                                    <Layers size={48} className="mb-2 opacity-20" />
+                                    <p className="text-sm">All categories assigned!</p>
                                 </div>
-                                <p className="text-gray-500 text-xs sm:text-sm font-medium">All categories assigned!</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Rings Panel */}
-                <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-1 lg:order-2">
-                    {/* Add Ring Form */}
-                    <div className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100">
-                        <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3">Create New Ring</label>
-                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                            <input
-                                type="text"
-                                value={newRingName}
-                                onChange={(e) => setNewRingName(e.target.value)}
-                                placeholder="Enter ring name (e.g., RING A)"
-                                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl text-gray-700 placeholder:text-gray-400 focus:bg-white focus:border-blue-300 focus:ring-4 focus:ring-blue-50 transition-all outline-none text-sm"
-                            />
-                            <button
-                                onClick={addRing}
-                                className="px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg sm:rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-200 font-semibold flex items-center justify-center gap-2 text-sm touch-target"
-                            >
-                                <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
-                                Add Ring
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Ring Cards Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                {/* Right Column: Rings */}
+                <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+                    {/* Ring List */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         {rings.map(ring => (
-                            <div key={ring.id} className="bg-white p-4 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                            <div
+                                key={ring.id}
+                                className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col"
+                            >
                                 {/* Ring Header */}
-                                <div className="flex justify-between items-center mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-100">
-                                    <div className="flex items-center gap-2 sm:gap-3 flex-1">
-                                        {/* Reorder Controls */}
-                                        <div className="flex flex-col gap-0.5 mr-1">
-                                            <button
-                                                onClick={() => {
-                                                    const idx = rings.findIndex(r => r.id === ring.id);
-                                                    if (idx > 0) {
-                                                        const newRings = [...rings];
-                                                        [newRings[idx - 1], newRings[idx]] = [newRings[idx], newRings[idx - 1]];
-                                                        handleRingUpdate(newRings);
-                                                    }
-                                                }}
-                                                disabled={rings.findIndex(r => r.id === ring.id) === 0}
-                                                className="text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                title="Move Left/Up"
-                                            >
-                                                <ChevronLeft size={14} className="rotate-90 sm:rotate-0" />
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const idx = rings.findIndex(r => r.id === ring.id);
-                                                    if (idx < rings.length - 1) {
-                                                        const newRings = [...rings];
-                                                        [newRings[idx], newRings[idx + 1]] = [newRings[idx + 1], newRings[idx]];
-                                                        handleRingUpdate(newRings);
-                                                    }
-                                                }}
-                                                disabled={rings.findIndex(r => r.id === ring.id) === rings.length - 1}
-                                                className="text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                title="Move Right/Down"
-                                            >
-                                                <ChevronLeft size={14} className="-rotate-90 sm:rotate-180" />
-                                            </button>
+                                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gradient-to-r from-gray-50/50 to-white">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 text-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-sm sm:text-base shadow-sm">
+                                            {ring.name.replace('RING', '').replace('Ring', '').trim().substring(0, 1)}
                                         </div>
-
-                                        <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-200 shrink-0">
-                                            {ring.name.charAt(ring.name.length - 1)}
-                                        </div>
-
-                                        {/* Edit Name Logic */}
-                                        {editingRingId === ring.id ? (
-                                            <input
-                                                autoFocus
-                                                type="text"
-                                                className="font-bold text-gray-800 border-b-2 border-blue-500 outline-none bg-transparent w-full text-sm sm:text-base"
-                                                defaultValue={ring.name}
-                                                onBlur={(e) => {
-                                                    const newName = e.target.value.trim();
-                                                    if (newName && newName !== ring.name) {
-                                                        const updated = rings.map(r => r.id === ring.id ? { ...r, name: newName } : r);
-                                                        handleRingUpdate(updated);
-                                                    }
-                                                    setEditingRingId(null);
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.currentTarget.blur();
-                                                    }
-                                                }}
-                                            />
-                                        ) : (
-                                            <h3
-                                                className="font-bold text-gray-800 cursor-pointer hover:text-blue-600 flex items-center gap-2 text-sm sm:text-base"
-                                                onClick={() => setEditingRingId(ring.id)}
-                                                title="Click to rename"
+                                        <div>
+                                            {editingRingId === ring.id ? (
+                                                <input
+                                                    type="text"
+                                                    defaultValue={ring.name}
+                                                    onBlur={(e) => {
+                                                        handleRingUpdate(rings.map(r => r.id === ring.id ? { ...r, name: e.target.value } : r));
+                                                        setEditingRingId(null);
+                                                    }}
+                                                    autoFocus
+                                                    className="font-bold text-gray-800 bg-white border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-100 text-sm sm:text-base w-32"
+                                                />
+                                            ) : (
+                                                <h3 className="font-bold text-gray-800 text-sm sm:text-base flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"
+                                                    onClick={() => setEditingRingId(ring.id)}
+                                                >
+                                                    {ring.name}
+                                                    <Pencil size={12} className="opacity-0 group-hover:opacity-50" />
+                                                </h3>
+                                            )}
+                                            {/* Bout Mode Selector */}
+                                            <select
+                                                value={ring.bout_mode || 'tree_pro'}
+                                                onChange={(e) => handleModeChange(ring.id, e.target.value as BoutMode)}
+                                                className="mt-1 text-[10px] sm:text-xs bg-gray-50 border-none rounded px-1 py-0.5 text-gray-500 focus:ring-0 cursor-pointer hover:bg-gray-100"
                                             >
-                                                {ring.name}
-                                                <Pencil size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            </h3>
-                                        )}
+                                                <option value="tree_pro">Professional Tree</option>
+                                                <option value="tree_carnival">Carnival Tree</option>
+                                                <option value="table_pro">Professional Table</option>
+                                                <option value="table_carnival">Carnival Table</option>
+                                            </select>
+                                        </div>
                                     </div>
-
-                                    <div className="flex items-center gap-1 sm:gap-2">
-                                        <button
-                                            onClick={() => addPriority(ring.id)}
-                                            className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-100 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-lg border border-gray-200 hover:border-blue-200 transition-all font-medium flex items-center gap-1 touch-target"
-                                        >
-                                            <Plus size={12} className="sm:w-[14px] sm:h-[14px]" />
-                                            <span className="hidden sm:inline">Priority</span>
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                if (confirm(`Delete ${ring.name}?`)) {
-                                                    deleteRing(ring.id);
-                                                }
-                                            }}
-                                            className="text-xs p-1.5 sm:px-2 sm:py-1.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 rounded-lg border border-red-100 transition-all touch-target"
-                                            title="Delete Ring"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (confirm('Delete this ring? Unassigned categories will move back to the pool.')) {
+                                                const newRings = rings.filter(r => r.id !== ring.id);
+                                                handleRingUpdate(newRings);
+                                            }
+                                        }}
+                                        className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors touch-target"
+                                    >
+                                        <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                                    </button>
                                 </div>
 
                                 {/* Priority Groups */}
-                                <div className="flex-1 space-y-3 sm:space-y-4">
-                                    {Object.keys(ring.priorityGroups).map(Number).sort((a, b) => a - b).map(priority => {
-                                        const totalBouts = getPriorityBoutTotal(ring.id, priority);
-                                        return (
-                                            <div key={priority}>
-                                                <div className="flex justify-between items-center mb-1.5 sm:mb-2">
-                                                    <div className="flex items-center gap-1.5 sm:gap-2">
-                                                        <span className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                                                            Priority {priority}
-                                                        </span>
-                                                        <span className="px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[9px] sm:text-[10px] font-bold">
-                                                            {totalBouts} bouts
-                                                        </span>
-                                                    </div>
+                                <div className="p-4 space-y-4 flex-1">
+                                    {Object.entries(ring.priorityGroups).sort(([a], [b]) => Number(a) - Number(b)).map(([priority, cats]) => (
+                                        <div
+                                            key={priority}
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const catKey = e.dataTransfer.getData('categoryKey');
+                                                if (catKey) {
+                                                    // Remove from other rings/priorities first
+                                                    let cleanRings = rings;
+                                                    // Check if already assigned elsewhere logic...
+                                                    // Simplified: Just add, assume single assignment enforce later or check
+                                                    // Actually we should remove from others first.
+                                                    cleanRings = cleanRings.map(r => {
+                                                        const newGroups = { ...r.priorityGroups };
+                                                        Object.keys(newGroups).forEach(p => {
+                                                            newGroups[Number(p)] = newGroups[Number(p)].filter(c => c !== catKey);
+                                                        });
+                                                        return { ...r, priorityGroups: newGroups };
+                                                    });
+
+                                                    // Add to this ring at this priority (Need to do this on the cleaned state)
+                                                    // So we effectively call handleRingUpdate with transformed state
+                                                    const targetRing = cleanRings.find(r => r.id === ring.id);
+                                                    if (targetRing) {
+                                                        const pNum = Number(priority);
+                                                        targetRing.priorityGroups[pNum] = [...(targetRing.priorityGroups[pNum] || []), catKey];
+                                                        handleRingUpdate(cleanRings);
+                                                    }
+                                                }
+                                            }}
+                                            className="bg-gray-50/50 rounded-lg sm:rounded-xl border border-dashed border-gray-200 p-3"
+                                        >
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                                    Priority {priority}
+                                                    <span className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-400 font-mono">
+                                                        {cats.length} Cats
+                                                    </span>
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                                        {getPriorityBoutTotal(ring.id, Number(priority))} Bouts
+                                                    </span>
                                                     <button
-                                                        onClick={() => removePriority(ring.id, priority)}
-                                                        className="text-[10px] text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 touch-target p-1"
-                                                        title="Remove Priority"
+                                                        onClick={() => removePriority(ring.id, Number(priority))}
+                                                        className="text-gray-300 hover:text-red-500"
+                                                        title="Remove Priority Group"
                                                     >
-                                                        <Trash2 size={12} />
+                                                        <XIcon size={12} />
                                                     </button>
                                                 </div>
-                                                <div className="min-h-[36px] sm:min-h-[40px] bg-gradient-to-r from-gray-50 to-transparent rounded-lg sm:rounded-xl p-1.5 sm:p-2 space-y-1 sm:space-y-1.5 border border-gray-100">
-                                                    {ring.priorityGroups[priority]?.map((catKey, idx) => (
-                                                        <div key={catKey} className="flex justify-between items-center text-xs sm:text-sm bg-white p-1.5 sm:p-2 rounded-lg border border-gray-100 group hover:border-blue-200 transition-colors">
-                                                            <div className="flex items-center gap-2 overflow-hidden mr-2">
-                                                                <span className="text-gray-400 font-mono text-[10px] sm:text-xs shrink-0 w-3">{idx + 1}.</span>
-                                                                <span className="text-gray-700 truncate font-medium" title={catKey}>{catKey}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                                                                <span className="text-[9px] sm:text-[10px] text-gray-400 bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded-full">{getBoutCount(catKey)}b</span>
-                                                                <button
-                                                                    onClick={() => removeCategory(ring.id, priority, catKey)}
-                                                                    className="w-4 sm:w-5 h-4 sm:h-5 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all touch-target"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {(!ring.priorityGroups[priority] || ring.priorityGroups[priority].length === 0) && (
-                                                        <span className="text-[10px] sm:text-xs text-gray-400 italic block text-center py-1.5 sm:py-2">Drop categories here</span>
-                                                    )}
-                                                </div>
                                             </div>
-                                        );
-                                    })}
+                                            <div className="space-y-1.5 min-h-[30px]">
+                                                {cats.map(cat => (
+                                                    <div key={cat} className="flex justify-between items-center bg-white px-2 py-1.5 rounded border border-gray-100 shadow-sm text-xs sm:text-sm group">
+                                                        <span className="truncate max-w-[140px] text-gray-700">{cat}</span>
+                                                        <button
+                                                            onClick={() => removeCategory(ring.id, Number(priority), cat)}
+                                                            className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <XIcon size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {cats.length === 0 && (
+                                                    <div className="text-center py-2 text-gray-400 text-xs italic">
+                                                        Drop categories here
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => addPriority(ring.id)}
+                                        className="w-full py-2 border border-dashed border-gray-300 rounded-lg sm:rounded-xl text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={14} />
+                                        Add Priority Group
+                                    </button>
                                 </div>
                             </div>
                         ))}
 
-                        {rings.length === 0 && (
-                            <div className="col-span-full bg-white p-8 sm:p-12 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 text-center">
-                                <div className="w-12 sm:w-16 h-12 sm:h-16 bg-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                                    <svg className="w-6 sm:w-8 h-6 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                    </svg>
-                                </div>
-                                <p className="text-gray-500 font-medium text-sm sm:text-base">No rings created yet</p>
-                                <p className="text-gray-400 text-xs sm:text-sm mt-1">Create a ring above to start organizing categories</p>
+                        {/* Add Ring Button */}
+                        <div className="bg-gray-50 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-200 p-6 flex flex-col items-center justify-center gap-4 hover:border-blue-300 hover:bg-blue-50/30 transition-all group">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-gray-300 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300">
+                                <Plus size={24} className="sm:w-8 sm:h-8" />
                             </div>
-                        )}
+                            <div className="w-full max-w-[200px]">
+                                <input
+                                    type="text"
+                                    placeholder="New Ring Name"
+                                    value={newRingName}
+                                    onChange={(e) => setNewRingName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && addRing()}
+                                    className="w-full px-3 sm:px-4 py-2 text-center text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none mb-2"
+                                />
+                                <button
+                                    onClick={addRing}
+                                    className="w-full py-2 bg-gray-800 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-gray-900 transition-colors shadow-lg shadow-gray-200"
+                                >
+                                    Create Ring
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
+
+const XIcon = ({ size = 14, className = "" }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+    >
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+);

@@ -27,6 +27,7 @@ export interface Ring {
         [priority: number]: string[];
     };
     orderIndex?: number;
+    bout_mode?: BoutMode;
 }
 
 export interface Match {
@@ -41,4 +42,10 @@ export interface Match {
     // For tree structure
     leftChildId?: string;
     rightChildId?: string;
+    // For Table Mode
+    score?: number;
+    rank?: number;
+    is_table_mode?: boolean;
 }
+
+export type BoutMode = 'tree_pro' | 'tree_carnival' | 'table_pro' | 'table_carnival';
