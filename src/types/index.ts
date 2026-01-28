@@ -49,3 +49,10 @@ export interface Match {
 }
 
 export type BoutMode = 'tree_pro' | 'tree_carnival' | 'table_pro' | 'table_carnival';
+
+export interface CategoryStatus {
+    id: string;
+    category_key: string;
+    medals_given: boolean;
+    updated_at: string;
+}

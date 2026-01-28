@@ -3,7 +3,8 @@ import { useTournament } from '../context/TournamentContext';
 import type { Participant } from '../types';
 
 export interface Podium {
-    category: string;
+    category: string; // Display Name
+    categoryKey: string; // Raw Key for joining
     lastRing: string;
     gold?: Participant;
     silver?: Participant;
@@ -11,10 +12,24 @@ export interface Podium {
 }
 
 export const usePodiumResults = () => {
-    const { matches, rings } = useTournament();
+    const { matches, rings, participants } = useTournament();
 
     const podiums = useMemo(() => {
         const results: Podium[] = [];
+        const partMap = new Map(participants.map(p => [p.id, p]));
+
+        const resolve = (p: Participant | string | 'BYE' | null | undefined): Participant | undefined => {
+            if (!p || p === 'BYE') return undefined;
+            if (typeof p === 'object' && 'id' in p) return p as Participant;
+            if (typeof p === 'string') return partMap.get(p);
+            return undefined;
+        };
+
+        const getId = (p: Participant | string | 'BYE' | null | undefined): string | undefined => {
+            if (!p || p === 'BYE') return undefined;
+            if (typeof p === 'string') return p;
+            return p.id;
+        };
 
         matches.forEach((catMatches, categoryKey) => {
             if (catMatches.length === 0) return;
@@ -37,9 +52,12 @@ export const usePodiumResults = () => {
                 const silverMatch = catMatches.find(m => m.rank === 2);
                 const bronzeMatch = catMatches.find(m => m.rank === 3);
 
-                if (goldMatch && goldMatch.red && goldMatch.red !== 'BYE') gold = goldMatch.red as Participant;
-                if (silverMatch && silverMatch.red && silverMatch.red !== 'BYE') silver = silverMatch.red as Participant;
-                if (bronzeMatch && bronzeMatch.red && bronzeMatch.red !== 'BYE') bronze.push(bronzeMatch.red as Participant);
+                if (goldMatch) gold = resolve(goldMatch.red);
+                if (silverMatch) silver = resolve(silverMatch.red);
+                if (bronzeMatch) {
+                    const p = resolve(bronzeMatch.red);
+                    if (p) bronze.push(p);
+                }
 
                 // Track ring
                 if (goldMatch) lastRing = goldMatch.ring;
@@ -54,23 +72,33 @@ export const usePodiumResults = () => {
 
                 // Gold & Silver from Final
                 if (finalMatch.winner && finalMatch.winner !== 'BYE') {
-                    gold = finalMatch.winner as Participant;
+                    gold = resolve(finalMatch.winner);
+
+                    const goldId = getId(gold) || getId(finalMatch.winner);
+                    const redId = getId(finalMatch.red);
+
                     // Silver is the loser
-                    if (finalMatch.red === gold) {
-                        silver = finalMatch.blue === 'BYE' ? undefined : (finalMatch.blue as Participant);
+                    if (redId === goldId) {
+                        silver = resolve(finalMatch.blue);
                     } else {
-                        silver = finalMatch.red === 'BYE' ? undefined : (finalMatch.red as Participant);
+                        silver = resolve(finalMatch.red);
                     }
                 }
 
                 // Bronze from Semi-Finals
                 const semiFinals = catMatches.filter(m => m.nextMatchId === finalMatch.id);
                 semiFinals.forEach(semi => {
-                    if (semi.winner) {
-                        if (semi.red === semi.winner) {
-                            if (semi.blue && semi.blue !== 'BYE') bronze.push(semi.blue as Participant);
+                    if (semi.winner && semi.winner !== 'BYE') {
+                        const winnerId = getId(semi.winner);
+                        const semiRedId = getId(semi.red);
+
+                        // Loser of semi is bronze
+                        if (semiRedId === winnerId) {
+                            const p = resolve(semi.blue);
+                            if (p) bronze.push(p);
                         } else {
-                            if (semi.red && semi.red !== 'BYE') bronze.push(semi.red as Participant);
+                            const p = resolve(semi.red);
+                            if (p) bronze.push(p);
                         }
                     }
                 });
@@ -78,8 +106,6 @@ export const usePodiumResults = () => {
 
             // Format Category Name for Splits (e.g. "Male_A" -> "Male - Group A")
             let displayName = categoryKey;
-            // distinct split check: ends with _[A-Z]
-            // We can check if previous logic used single letters
             const splitMatch = categoryKey.match(/^(.*)_([A-Z])$/);
             if (splitMatch) {
                 displayName = `${splitMatch[1]} - Group ${splitMatch[2]}`;
@@ -91,6 +117,7 @@ export const usePodiumResults = () => {
 
             results.push({
                 category: displayName,
+                categoryKey: categoryKey,
                 lastRing: ringName,
                 gold,
                 silver,
@@ -100,7 +127,7 @@ export const usePodiumResults = () => {
 
         // Sort by Category Name
         return results.sort((a, b) => a.category.localeCompare(b.category));
-    }, [matches, rings]);
+    }, [matches, rings, participants]);
 
     return { podiums };
 };

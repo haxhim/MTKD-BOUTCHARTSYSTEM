@@ -16,9 +16,10 @@ import { Search, Save, UserPlus, Play, Menu, RotateCcw, Loader2 } from 'lucide-r
 
 import { SharePage } from '../pages/SharePage';
 import { CategoryWinnersView } from './CategoryWinnersView';
+import { MedalDistributionManager } from './MedalDistributionManager';
 
 // Define ViewState locally since it was removed from Sidebar
-export type ViewState = 'dashboard' | 'rings' | 'brackets' | 'ring_matches' | 'master_list' | 'judge' | 'winners' | 'share' | 'medals';
+export type ViewState = 'dashboard' | 'rings' | 'brackets' | 'ring_matches' | 'master_list' | 'judge' | 'winners' | 'share' | 'medals' | 'medals_manager';
 
 export const Dashboard: React.FC = () => {
     const {
@@ -119,6 +120,8 @@ export const Dashboard: React.FC = () => {
                 return <SharePage />; // Wait, SharePage wasn't imported in Dashboard. Let's stick to the pattern.
             case 'medals':
                 return <CategoryWinnersView onBack={() => setView('dashboard')} />;
+            case 'medals_manager':
+                return <MedalDistributionManager onBack={() => setView('dashboard')} />;
             case 'dashboard':
             default:
                 return renderHomeDashboard();
@@ -203,6 +206,13 @@ export const Dashboard: React.FC = () => {
                             >
                                 <Play size={16} className="sm:w-[18px] sm:h-[18px]" />
                                 Launch Judge Mode
+                            </button>
+                            <button
+                                onClick={() => setView('medals_manager')}
+                                className="w-full py-2.5 sm:py-3 px-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg sm:rounded-xl font-semibold hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg shadow-purple-200 active:scale-[0.98] flex items-center justify-center gap-2 text-sm sm:text-base touch-target"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Medal Dist. Manager
                             </button>
                         </div>
                     </div>

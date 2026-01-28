@@ -31,7 +31,7 @@ import { PublicMasterList } from './components/public/PublicMasterList';
 
 // Private Components
 import { PrivateJudgeWrapper } from './components/public/PrivateJudgeWrapper';
-import { MedalManager } from './components/public/MedalManager';
+import { MedalDistributionManager } from './components/MedalDistributionManager';
 
 function App() {
   return (
@@ -54,7 +54,7 @@ function App() {
             {/* --- PRIVATE SHARE ROUTES (PIN Protected) --- */}
             <Route path="/share/:tournamentId/private" element={<PrivateLayout />}>
               <Route path="judge" element={<PrivateJudgeWrapper />} />
-              <Route path="medals" element={<MedalManager />} />
+              <Route path="medals" element={<MedalDistributionManager />} />
               <Route index element={<Navigate to="judge" replace />} />
             </Route>
 

@@ -1,7 +1,7 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { Participant, Ring, CategorySummary, Match } from '../types';
+import type { Participant, Ring, CategorySummary, Match, CategoryStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { generateCategoryTally } from '../utils/tallyGenerator';
 
@@ -20,6 +20,8 @@ interface TournamentContextType {
     setCategorySummaries: (s: CategorySummary[]) => void;
     matches: Map<string, Match[]>;
     setMatches: (m: Map<string, Match[]>) => void;
+    categoryStatus: Map<string, CategoryStatus>;
+    updateCategoryStatus: (categoryKey: string, given: boolean) => Promise<void>;
 
     loadTournament: (id: string) => Promise<void>;
     resetData: () => Promise<void>;
@@ -46,7 +48,40 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
     const [rings, setRings] = useState<Ring[]>([]);
     const [categorySummaries, setCategorySummaries] = useState<CategorySummary[]>([]);
     const [matches, setMatches] = useState<Map<string, Match[]>>(new Map());
+    const [categoryStatus, setCategoryStatus] = useState<Map<string, CategoryStatus>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
+
+    const updateCategoryStatus = async (categoryKey: string, given: boolean) => {
+        if (!tournamentId) return;
+
+        // Optimistic Update
+        const newMap = new Map(categoryStatus);
+        const existing = newMap.get(categoryKey);
+        const now = new Date().toISOString();
+
+        if (existing) {
+            newMap.set(categoryKey, { ...existing, medals_given: given, updated_at: now });
+        } else {
+            newMap.set(categoryKey, { id: 'temp', category_key: categoryKey, medals_given: given, updated_at: now });
+        }
+        setCategoryStatus(newMap);
+
+        // DB Update
+        const { error } = await supabase
+            .from('category_tracking')
+            .upsert({
+                tournament_id: tournamentId,
+                category_key: categoryKey,
+                medals_given: given,
+                updated_at: now
+            }, { onConflict: 'tournament_id,category_key' });
+
+        if (error) {
+            console.error("Failed to update status:", error);
+            alert("Failed to update status: " + error.message);
+            // Revert would go here (omitted for brevity)
+        }
+    };
 
     const updatePin = async (newPin: string): Promise<boolean> => {
         if (!tournamentId) return false;
@@ -115,7 +150,9 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
             setParticipants([]);
             setRings([]);
             setCategorySummaries([]);
+            setCategorySummaries([]);
             setMatches(new Map());
+            setCategoryStatus(new Map());
         }
     }, [tournamentId]);
 
@@ -272,6 +309,16 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                     } else {
                         // Ensure stale matches are cleared when none exist in DB
                         setMatches(new Map());
+                    }
+
+                    // 4. Load Category Status
+                    const { data: statusData } = await supabase.from('category_tracking').select('*').eq('tournament_id', id);
+                    if (statusData) {
+                        const statusMap = new Map<string, CategoryStatus>();
+                        statusData.forEach((s: any) => statusMap.set(s.category_key, s));
+                        setCategoryStatus(statusMap);
+                    } else {
+                        setCategoryStatus(new Map());
                     }
 
                 }
@@ -600,6 +647,8 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
             setCategorySummaries,
             matches,
             setMatches,
+            categoryStatus,
+            updateCategoryStatus, // Exported function
             loadTournament,
             saveData,
             updateMatches,
