@@ -294,7 +294,7 @@ export const BracketView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             )}
 
             {/* Bracket Content */}
-            <div className="flex-1 overflow-auto bg-white border border-gray-100 rounded-xl p-4 sm:p-6 shadow-sm print-area">
+            <div className="flex-1 overflow-auto bg-white border border-gray-100 rounded-xl p-4 sm:p-6 shadow-sm print-area print:border-0 print:shadow-none">
                 <div ref={printRef} className="bracket-wrapper">
                     <div className="text-center mb-8 sticky left-0">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mb-2">

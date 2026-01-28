@@ -2,10 +2,10 @@ import React from 'react';
 import type { Match, Participant } from '../types';
 
 // Scalable sizing using CSS variables - base unit approach
-export const MATCH_HEIGHT = 88; // Compact but readable
-export const MATCH_WIDTH = 180; // Narrower for mobile
-export const MATCH_GAP = 20; // Gap between matches (increased for better visibility)
-export const CONNECTOR_WIDTH = 48; // Connector line width (increased for cleaner lines)
+export const MATCH_HEIGHT = 100; // Increased for better text fit
+export const MATCH_WIDTH = 260; // Wider for longer names
+export const MATCH_GAP = 60; // Significantly increased to prevent overlap
+export const CONNECTOR_WIDTH = 48; // Connector line width
 
 export interface BracketNodeProps {
     matchId: string;
@@ -104,7 +104,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                 <div className="flex-1 min-w-0">
                     <div
                         className={`font-semibold truncate ${isWinner ? 'text-gray-900' : 'text-gray-700'}`}
-                        style={{ fontSize: `${Math.max(11, 12 * scale)}px` }}
+                        style={{ fontSize: `${Math.max(13, 14 * scale)}px` }}
                         title={name}
                     >
                         {name}
@@ -113,7 +113,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                     {club && (
                         <div
                             className="text-gray-400 truncate"
-                            style={{ fontSize: `${Math.max(9, 10 * scale)}px` }}
+                            style={{ fontSize: `${Math.max(11, 11 * scale)}px` }}
                         >
                             {club}
                         </div>
@@ -224,7 +224,7 @@ export const BracketNode: React.FC<BracketNodeProps> = ({ matchId, matchMap, dep
                 {/* Bout Number Badge */}
                 {match.bout_number && match.bout_number !== '0' && (
                     <div
-                        className={`absolute top-0 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-b-md font-bold shadow-sm z-20
+                        className={`bout-badge absolute top-0 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-b-md font-bold shadow-sm z-20
                             ${isFinal
                                 ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white'
                                 : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white'}`}

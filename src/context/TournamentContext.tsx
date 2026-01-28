@@ -8,7 +8,9 @@ import { generateCategoryTally } from '../utils/tallyGenerator';
 interface TournamentContextType {
     tournamentId: string | null;
     tournamentName: string | null;
+    pin: string;
     setTournamentInfo: (id: string, name: string) => void;
+    updatePin: (newPin: string) => Promise<boolean>;
 
     participants: Participant[];
     setParticipants: (p: Participant[]) => void;
@@ -38,12 +40,35 @@ const TournamentContext = createContext<TournamentContextType | undefined>(undef
 export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [tournamentId, setTournamentId] = useState<string | null>(null);
     const [tournamentName, setTournamentName] = useState<string | null>(null);
+    const [pin, setPin] = useState<string>('123456');
 
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [rings, setRings] = useState<Ring[]>([]);
     const [categorySummaries, setCategorySummaries] = useState<CategorySummary[]>([]);
     const [matches, setMatches] = useState<Map<string, Match[]>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
+
+    const updatePin = async (newPin: string): Promise<boolean> => {
+        if (!tournamentId) return false;
+
+        // Optimistic update
+        const oldPin = pin;
+        setPin(newPin);
+
+        const { error } = await supabase
+            .from('tournaments')
+            .update({ pin: newPin })
+            .eq('id', tournamentId);
+
+        if (error) {
+            console.error("Failed to update PIN:", error);
+            // Revert on error
+            setPin(oldPin);
+            alert("Failed to save PIN to database: " + error.message);
+            return false;
+        }
+        return true;
+    };
 
     const setTournamentInfo = (id: string, name: string) => {
         setTournamentId(id);
@@ -96,7 +121,21 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
 
     const loadTournament = async (id: string) => {
         try {
-            // 1. Load Rings
+            // 1. Load Tournament Details (Name & PIN)
+            const { data: tourData } = await supabase
+                .from('tournaments')
+                .select('name, pin')
+                .eq('id', id)
+                .single();
+
+            if (tourData) {
+                setTournamentName(tourData.name);
+                setPin(tourData.pin || '123456');
+                // Update local storage for persistence
+                localStorage.setItem('mtkd_tournament_name', tourData.name);
+            }
+
+            // 2. Load Rings
             const { data: ringsData } = await supabase.from('rings').select('*').eq('tournament_id', id);
             if (ringsData) {
                 const parsedRings = ringsData.map(r => ({
@@ -550,6 +589,8 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
         <TournamentContext.Provider value={{
             tournamentId,
             tournamentName,
+            pin,
+            updatePin,
             setTournamentInfo,
             participants,
             setParticipants,

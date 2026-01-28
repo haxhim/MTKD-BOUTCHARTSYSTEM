@@ -112,6 +112,10 @@ export const Dashboard: React.FC = () => {
                 return <JudgeInterface onBack={() => setView('dashboard')} />;
             case 'winners':
                 return <WinnersView onBack={() => setView('dashboard')} />;
+            case 'share':
+                return <SharePage />; // Wait, SharePage wasn't imported in Dashboard. Let's stick to the pattern.
+            case 'medals':
+                return <CategoryWinnersView onBack={() => setView('dashboard')} />;
             case 'dashboard':
             default:
                 return renderHomeDashboard();

@@ -17,6 +17,7 @@ import { MasterBoutPage } from './pages/MasterBoutPage';
 import { JudgePage } from './pages/JudgePage';
 import { WinnersPage } from './pages/WinnersPage';
 import { SharePage } from './pages/SharePage';
+import { CategoryWinnersPage } from './pages/CategoryWinnersPage';
 
 // New Layouts
 import { PublicLayout } from './pages/PublicLayout';
@@ -74,6 +75,7 @@ function App() {
                   <Route path="judge" element={<JudgePage />} />
                   <Route path="judge/:ringId" element={<JudgePage />} />
                   <Route path="winners" element={<WinnersPage />} />
+                  <Route path="medals" element={<CategoryWinnersPage />} />
                   <Route path="share" element={<SharePage />} />
 
                   {/* Default redirect to overview */}

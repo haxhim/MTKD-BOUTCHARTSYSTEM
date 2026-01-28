@@ -533,19 +533,27 @@ button:focus-visible {
 
   /* === CARD/BRACKET PRINT STYLES === */
 
-  .bg-white,
+  /* Only targeting specific card containers, NOT all bg-white elements */
   .card,
   .rounded-xl,
   .rounded-2xl {
     box-shadow: none !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 4px !important;
+    /* Do not globally remove borders from everything */
   }
 
-  /* Page breaks */
+  /* Explicitly hide the main container border/shadow in Bracket View if needed */
+  .print-area {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Page breaks - ensure robust breaking */
   .print-page-break {
     page-break-after: always !important;
     break-after: page !important;
+    display: block !important;
+    height: 1px !important;
+    /* Force layout */
   }
 
   .print-avoid-break {
@@ -557,7 +565,8 @@ button:focus-visible {
 
   .bracket-match {
     box-shadow: none !important;
-    border: 1px solid #ccc !important;
+    border: 1px solid #000 !important;
+    /* Force black border for matches */
     break-inside: avoid !important;
   }
 
@@ -632,5 +641,13 @@ button:focus-visible {
   .text-amber-400,
   .text-amber-500 {
     color: #000 !important;
+  }
+
+  /* Make Bout Badge Visible */
+  .bout-badge {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+    box-shadow: none !important;
   }
 }

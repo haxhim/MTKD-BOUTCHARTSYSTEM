@@ -35,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout, onExit, isOpen = tru
         { path: `${baseUrl}/judge`, label: 'Judge Interface', icon: Gavel },
         { path: `${baseUrl}/winners`, label: 'Results & Podium', icon: Trophy },
         { path: `${baseUrl}/share`, label: 'Share Center', icon: Network }, // Network icon reused or use Share icon if available
+        { path: `${baseUrl}/medals`, label: 'Medal Standings', icon: Trophy },
     ] as const;
 
     return (

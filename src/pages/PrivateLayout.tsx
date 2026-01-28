@@ -6,22 +6,15 @@ import { Loader2, ShieldCheck, LogOut, Gavel, Medal } from 'lucide-react';
 
 export const PrivateLayout: React.FC = () => {
     const { tournamentId } = useParams<{ tournamentId: string }>();
-    const { loadTournament, tournamentId: currentId } = useTournament();
+    const { loadTournament, tournamentId: currentId, pin } = useTournament();
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [tournamentPin, setTournamentPin] = useState('123456');
 
     // Initial Load
     useEffect(() => {
         const init = async () => {
             if (tournamentId && tournamentId !== currentId) {
                 await loadTournament(tournamentId);
-            }
-
-            // Load saved PIN from localStorage (set by admin in SharePage)
-            const savedPin = localStorage.getItem(`mtkd_pin_config_${tournamentId}`);
-            if (savedPin) {
-                setTournamentPin(savedPin);
             }
 
             // Check Session
@@ -32,7 +25,7 @@ export const PrivateLayout: React.FC = () => {
             setIsLoading(false);
         };
         init();
-    }, [tournamentId]);
+    }, [tournamentId, currentId, loadTournament]);
 
     const handlePinSuccess = () => {
         if (tournamentId) {
@@ -57,8 +50,8 @@ export const PrivateLayout: React.FC = () => {
     }
 
     if (!isAuthenticated) {
-        // Use the PIN saved by admin in SharePage
-        return <PinEntry onSuccess={handlePinSuccess} correctPin={tournamentPin} />;
+        // Use the PIN loaded from DB via Context
+        return <PinEntry onSuccess={handlePinSuccess} correctPin={pin} />;
     }
 
     return (

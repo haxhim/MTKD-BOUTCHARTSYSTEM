@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Globe, Shield, Lock, Save, ExternalLink } from 'lucide-react';
 import { useTournament } from '../context/TournamentContext';
 
 export const SharePage: React.FC = () => {
-    const { tournamentId } = useTournament();
+    const { tournamentId, pin, updatePin } = useTournament();
 
     // Links
     const baseUrl = window.location.origin;
@@ -12,19 +12,10 @@ export const SharePage: React.FC = () => {
     const privateUrl = `${baseUrl}/share/${tournamentId}/private`;
 
     // State
-    const [pin, setPin] = useState('123456');
     const [isEditingPin, setIsEditingPin] = useState(false);
     const [tempPin, setTempPin] = useState('');
     const [copiedPublic, setCopiedPublic] = useState(false);
     const [copiedPrivate, setCopiedPrivate] = useState(false);
-
-    // Load PIN from storage
-    useEffect(() => {
-        if (tournamentId) {
-            const savedPin = localStorage.getItem(`mtkd_pin_config_${tournamentId}`);
-            if (savedPin) setPin(savedPin);
-        }
-    }, [tournamentId]);
 
     const handleCopy = (url: string, setCopied: (v: boolean) => void) => {
         navigator.clipboard.writeText(url);
@@ -32,15 +23,16 @@ export const SharePage: React.FC = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSavePin = () => {
+    const handleSavePin = async () => {
         if (tempPin.length < 4) {
             alert('PIN must be at least 4 digits');
             return;
         }
-        setPin(tempPin);
-        localStorage.setItem(`mtkd_pin_config_${tournamentId}`, tempPin);
-        setIsEditingPin(false);
-        alert('Tournament PIN Updated Successfully');
+        const success = await updatePin(tempPin);
+        if (success) {
+            setIsEditingPin(false);
+            alert('Tournament PIN Updated Successfully');
+        }
     };
 
     return (
@@ -91,8 +83,8 @@ export const SharePage: React.FC = () => {
                             <button
                                 onClick={() => handleCopy(publicUrl, setCopiedPublic)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${copiedPublic
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}
                             >
                                 {copiedPublic ? 'Copied!' : 'Copy Link'}
@@ -147,8 +139,8 @@ export const SharePage: React.FC = () => {
                             <button
                                 onClick={() => handleCopy(privateUrl, setCopiedPrivate)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${copiedPrivate
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                     }`}
                             >
                                 {copiedPrivate ? 'Copied!' : 'Copy Link'}

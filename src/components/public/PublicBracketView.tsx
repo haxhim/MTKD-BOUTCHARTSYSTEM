@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
-import { Search, ChevronLeft, Trophy, Grid, Users } from 'lucide-react';
+import { Search, ChevronLeft, Trophy, Grid, Users, Printer, Filter } from 'lucide-react';
 import { BracketNode } from '../BracketNode';
 import type { Match, Ring } from '../../types';
 
@@ -114,6 +114,8 @@ export const PublicBracketView: React.FC = () => {
     const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview');
     const [selectedRingId, setSelectedRingId] = useState<string>('');
     const [search, setSearch] = useState('');
+    const [clubFilter, setClubFilter] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('');
     const scale = useResponsiveScale();
 
     // Sort rings A-Z
@@ -148,6 +150,28 @@ export const PublicBracketView: React.FC = () => {
     const selectedRing = rings.find(r => r.id === selectedRingId);
     const isTableMode = selectedRing?.bout_mode?.includes('table');
 
+    // Extract unique clubs and categories for filters
+    const { uniqueClubs, uniqueCategories } = useMemo(() => {
+        const clubs = new Set<string>();
+        const categories = new Set<string>();
+
+        if (selectedRingId) {
+            matches.forEach((catMatches, key) => {
+                if (catMatches.length > 0 && catMatches[0].ring === selectedRingId) {
+                    categories.add(key);
+                    catMatches.forEach(m => {
+                        if (typeof m.red !== 'string' && m.red?.club) clubs.add(m.red.club);
+                        if (typeof m.blue !== 'string' && m.blue?.club) clubs.add(m.blue.club);
+                    });
+                }
+            });
+        }
+        return {
+            uniqueClubs: Array.from(clubs).sort(),
+            uniqueCategories: Array.from(categories).sort()
+        };
+    }, [matches, selectedRingId]);
+
     // Categories for selected ring with matchMap for BracketNode
     const ringCategories = useMemo(() => {
         if (!selectedRingId) return [];
@@ -155,15 +179,35 @@ export const PublicBracketView: React.FC = () => {
 
         matches.forEach((catMatches, key) => {
             if (catMatches.length > 0 && catMatches[0].ring === selectedRingId) {
-                if (search) {
-                    const searchLower = search.toLowerCase();
-                    const hasMatch = catMatches.some(m =>
-                        (typeof m.red !== 'string' && m.red?.name.toLowerCase().includes(searchLower)) ||
-                        (typeof m.blue !== 'string' && m.blue?.name.toLowerCase().includes(searchLower)) ||
-                        key.toLowerCase().includes(searchLower)
-                    );
-                    if (!hasMatch) return;
-                }
+                // Main Filtering Logic
+                const searchLower = search.toLowerCase();
+
+                // 1. Check Category Filter
+                if (categoryFilter && key !== categoryFilter) return;
+
+                // 2. Check Search and Club Filter (must match at least one participant in the category)
+                const matchesFilter = catMatches.some(m => {
+                    const redName = typeof m.red !== 'string' ? m.red?.name.toLowerCase() : '';
+                    const blueName = typeof m.blue !== 'string' ? m.blue?.name.toLowerCase() : '';
+                    const redClub = typeof m.red !== 'string' ? m.red?.club : '';
+                    const blueClub = typeof m.blue !== 'string' ? m.blue?.club : '';
+
+                    // Search text matching
+                    const matchesSearch = !search ||
+                        redName?.includes(searchLower) ||
+                        blueName?.includes(searchLower) ||
+                        key.toLowerCase().includes(searchLower) ||
+                        (m.bout_number && m.bout_number.toString().includes(searchLower));
+
+                    // Club matching
+                    const matchesClub = !clubFilter ||
+                        redClub === clubFilter ||
+                        blueClub === clubFilter;
+
+                    return matchesSearch && matchesClub;
+                });
+
+                if (!matchesFilter) return;
 
                 // Build matchMap for BracketNode
                 const matchMap = new Map<string, Match>();
@@ -179,7 +223,7 @@ export const PublicBracketView: React.FC = () => {
             }
         });
         return result.sort((a, b) => a.key.localeCompare(b.key));
-    }, [matches, selectedRingId, search]);
+    }, [matches, selectedRingId, search, clubFilter, categoryFilter]);
 
 
     // Overview Mode
@@ -207,6 +251,9 @@ export const PublicBracketView: React.FC = () => {
                             onClick={() => {
                                 setSelectedRingId(ring.id);
                                 setViewMode('detail');
+                                setSearch(''); // Reset filters on ring change
+                                setClubFilter('');
+                                setCategoryFilter('');
                             }}
                         />
                     ))}
@@ -227,49 +274,99 @@ export const PublicBracketView: React.FC = () => {
     return (
         <div className="animate-fadeIn pb-10">
             {/* Toolbar */}
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between mb-6 sticky top-0 z-20">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setViewMode('overview')}
-                        className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm sm:text-base"
-                    >
-                        <ChevronLeft size={18} />
-                        Back
-                    </button>
-                    <div className="h-6 w-px bg-gray-200" />
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-sm">
-                            {selectedRing?.name.replace('Ring ', '').charAt(0)}
+            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-4 mb-6 sticky top-0 z-20">
+                {/* Top Row: Back btn, Ring info, Search */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <button
+                            onClick={() => setViewMode('overview')}
+                            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm sm:text-base shrink-0"
+                        >
+                            <ChevronLeft size={18} />
+                            Back
+                        </button>
+                        <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
+                                {selectedRing?.name.replace('Ring ', '').charAt(0)}
+                            </div>
+                            <h2 className="font-bold text-gray-800 text-sm sm:text-base truncate">{selectedRing?.name}</h2>
                         </div>
-                        <div>
-                            <h2 className="font-bold text-gray-800 text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">{selectedRing?.name}</h2>
+                    </div>
+
+                    <div className="flex gap-2 w-full sm:w-auto sm:max-w-md ml-auto">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search player, bout #, category..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
+                            />
                         </div>
+                        <button
+                            onClick={() => window.print()}
+                            className="p-2 bg-white text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors shrink-0"
+                            title="Print Ring Schedule"
+                        >
+                            <Printer size={20} />
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-1 w-full sm:max-w-xs">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-sm"
-                        />
+                {/* Filters Row */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center border-t border-gray-50 pt-3">
+                    <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-1 sm:mb-0">
+                        <Filter size={16} />
+                        <span>Filters:</span>
                     </div>
+                    <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none"
+                        >
+                            <option value="">All Categories</option>
+                            {uniqueCategories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={clubFilter}
+                            onChange={(e) => setClubFilter(e.target.value)}
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none"
+                        >
+                            <option value="">All Clubs</option>
+                            {uniqueClubs.map(club => (
+                                <option key={club} value={club}>{club}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {(categoryFilter || clubFilter || search) && (
+                        <button
+                            onClick={() => {
+                                setCategoryFilter('');
+                                setClubFilter('');
+                                setSearch('');
+                            }}
+                            className="text-xs text-red-600 hover:text-red-800 font-medium whitespace-nowrap px-2 ml-auto sm:ml-0"
+                        >
+                            Clear Filters
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Categories & Brackets */}
-            <div className="space-y-6">
+            <div className="space-y-6 print:space-y-0">
                 {ringCategories.map(({ key, matches: catMatches, matchMap, rootMatchId }) => (
-                    <div key={key} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        {/* Category Header */}
-                        <div className="bg-gradient-to-r from-gray-50 to-white px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <div key={key} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print-page-break print:shadow-none print:rounded-none print:border-0 print:mb-0 print:pb-0 print:overflow-visible">
+                        {/* ... (Rest of component matches rendering) */}
+                        <div className="bg-gradient-to-r from-gray-50 to-white px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 print:border-b-2 print:border-black print:bg-white">
                             <div className="flex items-center gap-3 overflow-hidden">
-                                <Users size={18} className="text-gray-400 shrink-0" />
-                                <h3 className="font-bold text-gray-800 text-sm sm:text-base truncate">{key}</h3>
+                                <Users size={18} className="text-gray-400 shrink-0 print:text-black" />
+                                <h3 className="font-bold text-gray-800 text-sm sm:text-base truncate print:text-black print:text-xl">{key}</h3>
                             </div>
                             <div className="flex items-center gap-2 self-start sm:self-auto">
                                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">
@@ -307,7 +404,7 @@ export const PublicBracketView: React.FC = () => {
                     <div className="text-center py-16 sm:py-20 text-gray-400 bg-white rounded-2xl border border-gray-200">
                         <Trophy className="mx-auto mb-4 opacity-30" size={48} />
                         <p className="font-medium">No matches found</p>
-                        <p className="text-sm">Try searching for something else</p>
+                        <p className="text-sm">Try adjusting your filters</p>
                     </div>
                 )}
             </div>
