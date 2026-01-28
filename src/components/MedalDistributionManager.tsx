@@ -7,7 +7,7 @@ type SortOption = 'latest' | 'earliest' | 'name' | 'priority';
 type FilterOption = 'all' | 'given' | 'pending';
 
 export const MedalDistributionManager: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-    const { categorySummaries, categoryStatus, updateCategoryStatus, rings } = useTournament();
+    const { categorySummaries, categoryStatus, updateCategoryStatus } = useTournament();
     const { podiums } = usePodiumResults();
 
     // State
@@ -264,8 +264,8 @@ export const MedalDistributionManager: React.FC<{ onBack?: () => void }> = ({ on
                                                     onClick={(e) => handleToggle(cat.category_key, cat.isGiven, e)}
                                                     disabled={isUpdating === cat.category_key}
                                                     className={`px-4 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${cat.isGiven
-                                                            ? 'bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200'
-                                                            : 'bg-green-600 text-white shadow-md shadow-green-200 hover:bg-green-700 hover:scale-105 active:scale-95'
+                                                        ? 'bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200'
+                                                        : 'bg-green-600 text-white shadow-md shadow-green-200 hover:bg-green-700 hover:scale-105 active:scale-95'
                                                         }`}
                                                 >
                                                     {isUpdating === cat.category_key ? 'Saving...' : (cat.isGiven ? 'Revoke' : 'Mark as Given')}
