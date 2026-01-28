@@ -5,7 +5,7 @@ import { generateId } from '../utils/uuid';
 import { assignBoutNumbers } from '../utils/matchGenerator';
 import { parseCSV } from '../utils/csvParser';
 import { generateCategoryTally } from '../utils/tallyGenerator';
-import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Layers, Pencil, Upload, RefreshCw } from 'lucide-react';
 
 export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [newRingName, setNewRingName] = useState('');
@@ -222,6 +222,20 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                             }}
                         />
                     </label>
+
+                    {/* Regenerate Button */}
+                    <button
+                        onClick={() => {
+                            if (confirm("Regenerate all bout numbers? This will fix sorting issues.")) {
+                                handleRingUpdate(rings);
+                            }
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-white text-gray-600 rounded-xl hover:bg-gray-50 border border-gray-200 transition-all font-medium shadow-sm hover:text-blue-600"
+                        title="Regenerate Bout Numbers"
+                    >
+                        <RefreshCw size={18} />
+                    </button>
+
                     <h1 className="text-lg sm:text-xl font-bold text-gray-800">Ring Assignment</h1>
                 </div>
             </div>
@@ -335,6 +349,40 @@ export const RingAssignment: React.FC<{ onBack: () => void }> = ({ onBack }) => 
                                 {/* Ring Header */}
                                 <div className="flex justify-between items-center mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-100">
                                     <div className="flex items-center gap-2 sm:gap-3 flex-1">
+                                        {/* Reorder Controls */}
+                                        <div className="flex flex-col gap-0.5 mr-1">
+                                            <button
+                                                onClick={() => {
+                                                    const idx = rings.findIndex(r => r.id === ring.id);
+                                                    if (idx > 0) {
+                                                        const newRings = [...rings];
+                                                        [newRings[idx - 1], newRings[idx]] = [newRings[idx], newRings[idx - 1]];
+                                                        handleRingUpdate(newRings);
+                                                    }
+                                                }}
+                                                disabled={rings.findIndex(r => r.id === ring.id) === 0}
+                                                className="text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                title="Move Left/Up"
+                                            >
+                                                <ChevronLeft size={14} className="rotate-90 sm:rotate-0" />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const idx = rings.findIndex(r => r.id === ring.id);
+                                                    if (idx < rings.length - 1) {
+                                                        const newRings = [...rings];
+                                                        [newRings[idx], newRings[idx + 1]] = [newRings[idx + 1], newRings[idx]];
+                                                        handleRingUpdate(newRings);
+                                                    }
+                                                }}
+                                                disabled={rings.findIndex(r => r.id === ring.id) === rings.length - 1}
+                                                className="text-gray-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                title="Move Right/Down"
+                                            >
+                                                <ChevronLeft size={14} className="-rotate-90 sm:rotate-180" />
+                                            </button>
+                                        </div>
+
                                         <div className="w-8 sm:w-10 h-8 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-200 shrink-0">
                                             {ring.name.charAt(ring.name.length - 1)}
                                         </div>

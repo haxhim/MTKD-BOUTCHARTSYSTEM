@@ -52,13 +52,32 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
         localStorage.setItem('mtkd_tournament_name', name);
     };
 
-    // Restore session on mount
+    // Restore session on mount OR fetch latest if missing
     useEffect(() => {
         const storedId = localStorage.getItem('mtkd_tournament_id');
         const storedName = localStorage.getItem('mtkd_tournament_name');
         if (storedId && storedName) {
             setTournamentId(storedId);
             setTournamentName(storedName);
+        } else {
+            // Auto-load the most recent tournament if local storage is empty
+            // BUT only if we are not on the lobby or login page (to allow switching/logout)
+            if (!window.location.pathname.includes('/lobby') && !window.location.pathname.includes('/login')) {
+                const fetchLatest = async () => {
+                    const { data, error } = await supabase
+                        .from('tournaments')
+                        .select('id, name')
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+
+                    if (data && !error) {
+                        console.log("Auto-loading tournament:", data.name);
+                        setTournamentInfo(data.id, data.name);
+                    }
+                };
+                fetchLatest();
+            }
         }
     }, []);
 
@@ -144,17 +163,29 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                             }
 
                             if (categoryKey) {
+                                // Infer BYE status:
+                                // If a side is NULL (no ID), but a winner is declared matching the opponent, it was a BYE.
+                                let redVal: Participant | 'BYE' | null = m.red_id ? (partMap.get(m.red_id) || null) : null;
+                                let blueVal: Participant | 'BYE' | null = m.blue_id ? (partMap.get(m.blue_id) || null) : null;
+
+                                if (!redVal && m.winner_id && m.blue_id && m.winner_id === m.blue_id) {
+                                    redVal = 'BYE';
+                                }
+                                if (!blueVal && m.winner_id && m.red_id && m.winner_id === m.red_id) {
+                                    blueVal = 'BYE';
+                                }
+
                                 const matchObj: Match = {
                                     id: m.id,
                                     bout_number: m.bout_number?.toString() || '0',
-                                    red: m.red_id ? (partMap.get(m.red_id) || null) : (m.red_id === null ? null : 'BYE'), // Logic check: DB null is TBD. 
-                                    blue: m.blue_id ? (partMap.get(m.blue_id) || null) : null,
+                                    red: redVal,
+                                    blue: blueVal,
                                     round: m.round_name,
                                     ring: m.ring_id,
                                     winner: m.winner_id ? partMap.get(m.winner_id) : undefined,
                                     nextMatchId: m.next_match_id,
-                                    leftChildId: undefined,
-                                    rightChildId: undefined
+                                    leftChildId: m.left_child_id || undefined, // Hydrate from DB
+                                    rightChildId: m.right_child_id || undefined
                                 };
 
                                 if (!newMap.has(categoryKey)) {
@@ -164,11 +195,14 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                             }
                         });
 
-                        // Sort by bout number
-                        newMap.forEach(list => list.sort((a, b) => Number(a.bout_number) - Number(b.bout_number)));
+                        // Sort by bout number (Robust Alphanumeric Parsing - User Provided)
+                        const getBoutNum = (s: string) => {
+                            const match = s.match(/(\d+)/);
+                            return match ? parseInt(match[1], 10) : 99999;
+                        };
+                        newMap.forEach(list => list.sort((a, b) => getBoutNum(a.bout_number || '0') - getBoutNum(b.bout_number || '0')));
 
-                        // Reconstruct tree structure (leftChildId / rightChildId) from nextMatchId
-                        // Since DB only stores "next_match_id" (child -> parent), we need to reverse map it.
+                        // Reconstruct tree structure if missing (legacy data fallback)
                         newMap.forEach((matchesList) => {
                             const matchLookup = new Map<string, Match>();
                             matchesList.forEach(m => matchLookup.set(m.id, m));
@@ -177,11 +211,12 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
                                 if (match.nextMatchId) {
                                     const parent = matchLookup.get(match.nextMatchId);
                                     if (parent) {
-                                        // Assign this match as a child of the parent
-                                        if (!parent.leftChildId) {
-                                            parent.leftChildId = match.id;
-                                        } else if (!parent.rightChildId) {
-                                            parent.rightChildId = match.id;
+                                        // Only if DB didn't provide children (backward compatibility)
+                                        if (!parent.leftChildId && !parent.rightChildId) {
+                                            if (match.id !== parent.leftChildId && match.id !== parent.rightChildId) {
+                                                if (!parent.leftChildId) parent.leftChildId = match.id;
+                                                else parent.rightChildId = match.id;
+                                            }
                                         }
                                     }
                                 }
@@ -275,32 +310,44 @@ export const TournamentProvider: React.FC<{ children: ReactNode }> = ({ children
             });
 
             if (allMatches.length > 0) {
-                const MATCH_BATCH_SIZE = 20;
+                const MATCH_BATCH_SIZE = 50;
                 for (let i = 0; i < allMatches.length; i += MATCH_BATCH_SIZE) {
                     const batch = allMatches.slice(i, i + MATCH_BATCH_SIZE);
 
-                    const { error: mError } = await supabase
-                        .from('matches')
-                        .upsert(batch.map(item => ({
-                            id: item.match.id,
-                            tournament_id: tournamentId,
-                            category_key: item.categoryKey,
-                            bout_number: String(item.match.bout_number || '0'),
-                            red_id: (typeof item.match.red === 'object' && item.match.red) ? item.match.red.id : ((item.match.red === 'BYE') ? null : null),
-                            blue_id: (typeof item.match.blue === 'object' && item.match.blue) ? item.match.blue.id : null,
-                            winner_id: (typeof item.match.winner === 'object' && item.match.winner) ? item.match.winner.id : null,
-                            ring_id: item.match.ring,
-                            round_name: item.match.round,
-                            next_match_id: item.match.nextMatchId
-                        })), { onConflict: 'id' });
+                    const upsertMatches = async () => {
+                        return await supabase
+                            .from('matches')
+                            .upsert(batch.map(item => ({
+                                id: item.match.id,
+                                tournament_id: tournamentId,
+                                bout_number: item.match.bout_number,
+                                red_id: item.match.red && item.match.red !== 'BYE' ? item.match.red.id : null,
+                                blue_id: item.match.blue && item.match.blue !== 'BYE' ? item.match.blue.id : null,
+                                winner_id: item.match.winner && item.match.winner !== 'BYE' ? item.match.winner.id : null,
+                                round_name: item.match.round,
+                                ring_id: item.match.ring,
+                                next_match_id: item.match.nextMatchId,
+                                left_child_id: item.match.leftChildId,
+                                right_child_id: item.match.rightChildId,
+                                category_key: item.categoryKey
+                            })), { onConflict: 'id' });
+                    };
+
+                    let { error: mError } = await upsertMatches();
+
+                    // Retry logic for matches
+                    if (mError) {
+                        console.warn(`Match batch ${i / MATCH_BATCH_SIZE + 1} failed, retrying...`);
+                        await wait(1000);
+                        mError = (await upsertMatches()).error;
+                    }
 
                     if (mError) {
-                        console.error("Error saving matches batch:", mError);
+                        console.error(`Error saving matches batch ${i}:`, mError);
                         alert(`Failed to save matches: ${mError.message}`);
                         throw mError;
                     }
-
-                    await wait(100);
+                    await wait(200);
                 }
             }
 
